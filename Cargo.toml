@@ -1,7 +1,7 @@
 [package]
 name = "rl-hours-tracker"
 license = "MIT"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A rust binary used for calculating the hours played of Rocket League in the past two weeks."
 
