@@ -1,4 +1,5 @@
 # Rocket League Hours Tracker
+
 This was made specifically for the Epic Games version of Rocket League
 as the Epic Games launcher has no way of showing the past two hours played in
 the same way that steam is able to.
