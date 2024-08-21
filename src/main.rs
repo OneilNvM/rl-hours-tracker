@@ -1,21 +1,21 @@
-/// # Rocket League Hours Tracker
-/// This was made specifically for the Epic Games version of Rocket League
-/// as the Epic Games launcher has no way of showing the past two hours played in
-/// the same way that steam is able to.
-/// 
-/// However, this program can and should still work with the steam version of the game.
-/// 
-/// It is `HIGHLY` recommended to not manually alter the files that are created by this program
-/// otherwise it could lead to unwanted behaviour by the program
-/// 
-/// ```
-/// 
-///     println!("You got it Oneil :)");
-/// ```
+//! # Rocket League Hours Tracker
+//! This was made specifically for the Epic Games version of Rocket League
+//! as the Epic Games launcher has no way of showing the past two hours played in
+//! the same way that steam is able to.
+//!
+//! However, this program can and should still work with the steam version of the game.
+//!
+//! It is `HIGHLY` recommended to not manually alter the files that are created by this program
+//! otherwise it could lead to unwanted behaviour by the program
+//!
+//! ```
+//!     println!("You got it Oneil :)");
+//! ```
 use chrono::prelude::*;
 use chrono::Duration as CDuration;
 use std::io::ErrorKind;
 use std::thread;
+use std::usize;
 use std::{fs, io};
 use std::{
     fs::File,
@@ -90,7 +90,7 @@ fn main() {
     }
 }
 
-/// This function takes in a reference string `process_name: &str` and starts a stopwatch 
+/// This function takes in a reference string `process_name: &str` and starts a stopwatch
 /// which keeps track of the amount of seconds that pass whilst the process is running.
 /// The stopwatch is ended and the File operations are run at the end of the process.
 /// The date and elapsed time are stored in the `date.txt` file and the hours is stored in
@@ -339,23 +339,102 @@ fn retrieve_time(contents: &String) -> (u64, f32) {
     (old_seconds, old_hours)
 }
 
-fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
-    let mut high = split_newline.len() - 1;
-    let mut low = 0;
+/// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`usize`] as an index of the closest
+/// after the date two weeks ago.
+fn closest_date(split_newline: &Vec<&str>) -> usize {
+    // Store the local date today
+    let today = Local::now().date_naive();
+    // Store the date two weeks ago
+    let mut current_date = today - CDuration::days(14);
+    
+    // While loop attempts to find what date is closest to the date two weeks ago, within the Vector
+    while current_date <= today {
+        // date_binary_search takes a reference of split_newline Vector and the current iteration of the date
+        let idx = date_binary_search(split_newline, &current_date.to_string());
 
+        // Returns the index of the closest date if value is not usize::MAX
+        if idx != usize::MAX {
+            return idx;
+        }
+
+        // Increments the date
+        current_date += CDuration::days(1);
+    }
+
+    // Return 0 if there are any issues
+    0
+}
+
+/// This function is used to perform a binary search on a [`Vec<&str>`] Vector and compares the dates in the Vector with
+/// the `c_date` [`String`]. The function then returns a [`usize`] for the index of the date, or a [`usize::MAX`] if the
+/// date is not present.
+fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
+    // Initialize mutable variable 'high' with last index of Vector
+    let mut high = split_newline.len() - 1;
+    // Initialize mutable variable 'low' to 0
+    let mut low = 0;
+    // Initialize mutable variable 'result' to 0
+    let mut result = 0;
+    // Initialize mutable variable 'is_zero' to true
+    let mut is_zero = true;
+
+    // While loop performs binary search of the date in the Vector
+    // Loop is broken if the index of the date is found
     while low <= high {
+        // Set the midpoint of the current iteration
         let mid = low + (high - low) / 2;
 
+        // Split the Vector element by whitespace
         let s_mid: Vec<&str> = split_newline[mid].split_whitespace().collect();
 
+        // If statement checks if the current date is either equal, less than, or greater than
+        // the date two weeks ago
         if s_mid[0] == c_date {
-            return mid;
+            result = mid;
+            is_zero = false;
+            break;
         } else if s_mid[0] < c_date {
             low = mid + 1;
         } else {
+            if mid == 0 {
+                return result;
+            }
             high = mid - 1;
         }
     }
+
+    // While loop checks for any duplicates of the date two weeks ago in order to include them in the new Vector
+    // This loop only runs if the date is found in the Vector
+    while !is_zero {
+        // Date Vector for current iteration
+        let date_vec: Vec<&str> = split_newline[result].split_whitespace().collect();
+        // Date string reference for the current iteration 
+        let date_str = date_vec[0];
+
+        // Check if result is equal to zero and if the date is equal to the date two weeks ago
+        // Return index if true
+        if result == 0 && date_str == c_date {
+            return result;
+        }
+
+        // Set the ptr to current iteration - 1
+        let ptr = result - 1;
+
+        // Initialize similar variables to the current iteration but with the pointer
+        let prev_date_vec: Vec<&str> = split_newline[ptr].split_whitespace().collect();
+        let prev_date_str = prev_date_vec[0];
+
+        // Checks if the current iteration date is not equal to the past date
+        // Return the index if true
+        // Set the current iteration to the pointer if false
+        if date_str != prev_date_str {
+            return result;
+        } else {
+            result = ptr;
+        }
+    }
+
+    // Return usize::MAX if the date is not found
     usize::MAX
 }
 
@@ -381,7 +460,7 @@ fn calculate_past_two() -> u64 {
                 Ok(_) => {
                     // Split the contents of file by newline character
                     let mut split_newline: Vec<&str> = date_file_str.split("\n").collect();
-                    
+
                     // Pops the end of the Vector as it is an empty string
                     split_newline.pop();
 
@@ -400,6 +479,24 @@ fn calculate_past_two() -> u64 {
                     // Mutable variable of date two weeks ago
                     let mut cur_date: NaiveDate = two_weeks_ago;
 
+                    // Declare variable for string reference slice
+                    let split_line_copy: &[&str];
+
+                    // Assign value from date_binary_search to variable
+                    let date_idx = date_binary_search(&split_newline, &cur_date.to_string());
+
+                    // Checks if the index returned from date_binary_search is usize::MAX
+                    // Either sets the split_line_copy variable to a string reference slice of the Vector, with the first element
+                    // as the first occurrence of the date two weeks ago
+                    // Or, sets it to the closest date after the date two weeks ago
+                    if date_idx != usize::MAX {
+                        split_line_copy = &split_newline[date_idx..];
+                    } else {
+                        let closest = closest_date(&split_newline);
+
+                        split_line_copy = &split_newline[closest..];
+                    }
+
                     // While loop checks if the date is in the contents string and adds the seconds accompanied with it, to the seconds_past_two variable
                     while !is_after_today {
                         // Checks if the current iteration of the date two weeks ago is greater than today
@@ -408,8 +505,8 @@ fn calculate_past_two() -> u64 {
                             continue;
                         }
 
-                        // Loop through split_newline vector and compare the date to the cur_date
-                        for date in &split_newline {
+                        // Loop through split_line_copy vector and compare the date to the cur_date
+                        for date in split_line_copy.to_vec() {
                             // Split the date by whitespace
                             let split_whitespace: Vec<&str> = date.split_whitespace().collect();
 
@@ -450,10 +547,7 @@ fn calculate_past_two() -> u64 {
             }
         }
         // Panics if there was an error opening the file
-        Err(e) => println!(
-            "Past Two not calculated. Error Kind: {}",
-            e.kind()
-        ),
+        Err(e) => println!("Past Two not calculated. Error Kind: {}", e.kind()),
     }
     seconds_past_two
 }
