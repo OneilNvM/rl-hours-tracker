@@ -112,12 +112,66 @@ fn record_hours(process_name: &str) {
             // Stores the hours as f32
             let hours: f32 = seconds as f32 / 3600.0;
 
-            // Stores the hours past two by calling the calculate_past_two function and calculating the hours as f32
-            let hours_past_two = calculate_past_two() as f32 / 3600.0;
-
             // Opens both the hours file and date file in read mode if they exist
             let hours_result = File::open("C:\\RLHoursFolder\\hours.txt");
             let date_result = File::open("C:\\RLHoursFolder\\date.txt");
+            
+            // Checks if the date file exists, then handles file operations
+            if let Ok(_) = date_result {
+                // Opens the date file in append mode
+                let append_date_result = File::options()
+                    .append(true)
+                    .open("C:\\RLHoursFolder\\date.txt");
+
+                // Checks if the file opens, then stores the File in the mutable 'date_file' variable
+                match append_date_result {
+                    Ok(mut date_file) => {
+                        // Store the current local date
+                        let today = Local::now().date_naive();
+
+                        // This String stores the date today, and the seconds elapsed in session
+                        let today_str = format!("{} {}s\n", today, seconds);
+
+                        // Checks if writing to the file was successful
+                        match date_file.write_all(&today_str.as_bytes()) {
+                            Ok(_) => println!("{}", today_str),
+                            // Panics if there was an issue writing to the file
+                            Err(e) => panic!("There was an error writing to the 'date.txt' file. Error Kind: {}", e.kind())
+                        }
+                    }
+                    // Panics if there was an issue opening the file
+                    Err(e) => panic!("There was an error opening the 'date.txt' file in append mode. Error Kind: {}", e.kind())
+                }
+            } else {
+                // Checks if the file was created, then stores the File in the mutable 'file' variable
+                match File::create("C:\\RLHoursFolder\\date.txt") {
+                    Ok(mut file) => {
+                        // Store the current local date
+                        let today = Local::now().date_naive();
+
+                        // This String stores the date today, and the seconds elapsed in session
+                        let today_str = format!("{} {}s\n", today, seconds);
+
+                        // Checks if writing to the file was successful
+                        match file.write_all(&today_str.as_bytes()) {
+                            Ok(_) => println!("The date file was successfully created"),
+                            // Panics if there was an error writing to the file
+                            Err(e) => panic!(
+                                "There was an error writing to the 'date.txt' file. Error Kind: {}",
+                                e.kind()
+                            ),
+                        }
+                    }
+                    // Panics if there was an error creating the file
+                    Err(e) => panic!(
+                        "There was an error creating the 'date.txt' file. Erorr Kind: {}",
+                        e.kind()
+                    ),
+                }
+            }
+
+            // Stores the hours past two by calling the calculate_past_two function and calculating the hours as f32
+            let hours_past_two = calculate_past_two() as f32 / 3600.0;
 
             // Checks if the file exists, then stores the File into the mutable 'file' variable
             if let Ok(mut file) = hours_result {
@@ -168,60 +222,6 @@ fn record_hours(process_name: &str) {
                     // Panic if there was an error when attempting to create the file
                     Err(e) => panic!(
                         "There was an error creating the 'hours.txt' file. Error Kind: {}",
-                        e.kind()
-                    ),
-                }
-            }
-
-            // Checks if the date file exists, then handles file operations
-            if let Ok(_) = date_result {
-                // Opens the date file in append mode
-                let append_date_result = File::options()
-                    .append(true)
-                    .open("C:\\RLHoursFolder\\date.txt");
-
-                // Checks if the file opens, then stores the File in the mutable 'date_file' variable
-                match append_date_result {
-                    Ok(mut date_file) => {
-                        // Store the current local date
-                        let today = Local::now().date_naive();
-
-                        // This String stores the date today, and the seconds elapsed in session
-                        let today_str = format!("{} {}s\n", today, seconds);
-
-                        // Checks if writing to the file was successful
-                        match date_file.write_all(&today_str.as_bytes()) {
-                            Ok(_) => println!("{}", today_str),
-                            // Panics if there was an issue writing to the file
-                            Err(e) => panic!("There was an error writing to the 'date.txt' file. Error Kind: {}", e.kind())
-                        }
-                    }
-                    // Panics if there was an issue opening the file
-                    Err(e) => panic!("There was an error opening the 'date.txt' file in append mode. Error Kind: {}", e.kind())
-                }
-            } else {
-                // Checks if the file was created, then stores the File in the mutable 'file' variable
-                match File::create("C:\\RLHoursFolder\\date.txt") {
-                    Ok(mut file) => {
-                        // Store the current local date
-                        let today = Local::now().date_naive();
-
-                        // This String stores the date today, and the seconds elapsed in session
-                        let today_str = format!("{} {}s\n", today, seconds);
-
-                        // Checks if writing to the file was successful
-                        match file.write_all(&today_str.as_bytes()) {
-                            Ok(_) => println!("The date file was successfully created"),
-                            // Panics if there was an error writing to the file
-                            Err(e) => panic!(
-                                "There was an error writing to the 'date.txt' file. Error Kind: {}",
-                                e.kind()
-                            ),
-                        }
-                    }
-                    // Panics if there was an error creating the file
-                    Err(e) => panic!(
-                        "There was an error creating the 'date.txt' file. Erorr Kind: {}",
                         e.kind()
                     ),
                 }
@@ -563,7 +563,7 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
 
     // Add the new seconds and the new hours to the old
     let added_seconds = old_seconds + *seconds as u64;
-    let added_hours = old_hours + hours;
+    let added_hours = old_hours + *hours;
 
     // Return the new string of the file contents to be written to the file
     format!(
@@ -583,6 +583,7 @@ fn check_for_process(name: &str) -> bool {
     for process in sys.processes_by_exact_name(name.as_ref()) {
         if process.name() == name {
             result = true;
+            break;
         }
     }
 
