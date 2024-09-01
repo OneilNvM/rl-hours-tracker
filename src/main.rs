@@ -120,7 +120,7 @@ fn record_hours(process_name: &str) {
             // Opens both the hours file and date file in read mode if they exist
             let hours_result = File::open("C:\\RLHoursFolder\\hours.txt");
             let date_result = File::open("C:\\RLHoursFolder\\date.txt");
-            
+
             write_to_date(date_result, &seconds);
 
             // Stores the hours past two by calling the calculate_past_two function and calculating the hours as f32
@@ -264,7 +264,7 @@ fn closest_date(split_newline: &Vec<&str>) -> usize {
     }
 
     // Return 0 if there are any issues
-    0
+    usize::MAX
 }
 
 /// This function is used to perform a binary search on a [`Vec<&str>`] Vector and compares the dates in the Vector with
@@ -396,7 +396,11 @@ fn calculate_past_two() -> u64 {
                     } else {
                         let closest = closest_date(&split_newline);
 
-                        split_line_copy = &split_newline[closest..];
+                        if closest != usize::MAX {
+                            split_line_copy = &split_newline[closest..];
+                        } else {
+                            panic!("The closest date could not be found.");
+                        }
                     }
 
                     // While loop checks if the date is in the contents string and adds the seconds accompanied with it, to the seconds_past_two variable
