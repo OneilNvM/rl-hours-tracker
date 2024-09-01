@@ -59,40 +59,40 @@ fn main() {
 }
 
 fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String) {
-        // Main loop for the program
-        'main_loop: loop {
-            // Checks if the process is running
-            if check_for_process(process_name) {
-                // Begins the loop which records the seconds past after the process began
-                record_hours(process_name);
-    
-                // Change is_waiting value back to false
-                *is_waiting = false;
-    
-                // Allow user to choose whether to continue the program or end it
-                println!("End program (y/n)?");
-                io::stdin().read_line(option).unwrap();
-    
-                // Check the option the user gave and respond accordingly
-                if option.trim() == "y" || option.trim() == "Y" {
-                    break 'main_loop;
-                } else if option.trim() == "n" || option.trim() == "N" {
-                    *option = String::new();
-                    continue;
-                } else {
-                    println!("Unexpected input! Ending program.");
-                    break 'main_loop;
-                }
+    // Main loop for the program
+    'main_loop: loop {
+        // Checks if the process is running
+        if check_for_process(process_name) {
+            // Begins the loop which records the seconds past after the process began
+            record_hours(process_name);
+
+            // Change is_waiting value back to false
+            *is_waiting = false;
+
+            // Allow user to choose whether to continue the program or end it
+            println!("End program (y/n)?");
+            io::stdin().read_line(option).unwrap();
+
+            // Check the option the user gave and respond accordingly
+            if option.trim() == "y" || option.trim() == "Y" {
+                break 'main_loop;
+            } else if option.trim() == "n" || option.trim() == "N" {
+                *option = String::new();
+                continue;
             } else {
-                // Print 'Waiting for Rocket League to start...' only once by changing the value of is_waiting to true
-                if !*is_waiting {
-                    println!("Waiting for Rocket League to start...");
-                    *is_waiting = true;
-                }
-                // Sleep for 1000ms after every loop to save on CPU usage
-                thread::sleep(Duration::from_millis(1000));
+                println!("Unexpected input! Ending program.");
+                break 'main_loop;
             }
+        } else {
+            // Print 'Waiting for Rocket League to start...' only once by changing the value of is_waiting to true
+            if !*is_waiting {
+                println!("Waiting for Rocket League to start...");
+                *is_waiting = true;
+            }
+            // Sleep for 1000ms after every loop to save on CPU usage
+            thread::sleep(Duration::from_millis(1000));
         }
+    }
 }
 
 /// This function takes in a reference string `process_name: &str` and starts a stopwatch
@@ -121,116 +121,13 @@ fn record_hours(process_name: &str) {
             let hours_result = File::open("C:\\RLHoursFolder\\hours.txt");
             let date_result = File::open("C:\\RLHoursFolder\\date.txt");
             
-            // Checks if the date file exists, then handles file operations
-            if let Ok(_) = date_result {
-                // Opens the date file in append mode
-                let append_date_result = File::options()
-                    .append(true)
-                    .open("C:\\RLHoursFolder\\date.txt");
-
-                // Checks if the file opens, then stores the File in the mutable 'date_file' variable
-                match append_date_result {
-                    Ok(mut date_file) => {
-                        // Store the current local date
-                        let today = Local::now().date_naive();
-
-                        // This String stores the date today, and the seconds elapsed in session
-                        let today_str = format!("{} {}s\n", today, seconds);
-
-                        // Checks if writing to the file was successful
-                        match date_file.write_all(&today_str.as_bytes()) {
-                            Ok(_) => println!("{}", today_str),
-                            // Panics if there was an issue writing to the file
-                            Err(e) => panic!("There was an error writing to the 'date.txt' file. Error Kind: {}", e.kind())
-                        }
-                    }
-                    // Panics if there was an issue opening the file
-                    Err(e) => panic!("There was an error opening the 'date.txt' file in append mode. Error Kind: {}", e.kind())
-                }
-            } else {
-                // Checks if the file was created, then stores the File in the mutable 'file' variable
-                match File::create("C:\\RLHoursFolder\\date.txt") {
-                    Ok(mut file) => {
-                        // Store the current local date
-                        let today = Local::now().date_naive();
-
-                        // This String stores the date today, and the seconds elapsed in session
-                        let today_str = format!("{} {}s\n", today, seconds);
-
-                        // Checks if writing to the file was successful
-                        match file.write_all(&today_str.as_bytes()) {
-                            Ok(_) => println!("The date file was successfully created"),
-                            // Panics if there was an error writing to the file
-                            Err(e) => panic!(
-                                "There was an error writing to the 'date.txt' file. Error Kind: {}",
-                                e.kind()
-                            ),
-                        }
-                    }
-                    // Panics if there was an error creating the file
-                    Err(e) => panic!(
-                        "There was an error creating the 'date.txt' file. Erorr Kind: {}",
-                        e.kind()
-                    ),
-                }
-            }
+            write_to_date(date_result, &seconds);
 
             // Stores the hours past two by calling the calculate_past_two function and calculating the hours as f32
             let hours_past_two = calculate_past_two() as f32 / 3600.0;
 
-            // Checks if the file exists, then stores the File into the mutable 'file' variable
-            if let Ok(mut file) = hours_result {
-                // Mutable variable to store file contents as a String
-                let mut contents = String::new();
+            write_to_hours(hours_result, &seconds, &hours, &hours_past_two, &sw);
 
-                // Checks if the file reads successfully, write new data to the file
-                if let Ok(_) = file.read_to_string(&mut contents) {
-                    // Stores the new contents for the file as a String
-                    let rl_hours_str =
-                        return_new_hours(&contents, &seconds, &hours, &hours_past_two);
-
-                    // Opens the file in write mode
-                    let truncated_file = File::create("C:\\RLHoursFolder\\hours.txt");
-
-                    // Checks if the file was exists, then stores the truncated File into the mutable 't_file' variable
-                    if let Ok(mut t_file) = truncated_file {
-                        // Checks if writing to the file was successful
-                        match t_file.write_all(&rl_hours_str.as_bytes()) {
-                            Ok(_) => {
-                                // Prints the String contents and the elapsed time
-                                println!("{}", rl_hours_str);
-                                println!("Elapsed Time: {}s", seconds);
-                            }
-                            // Panics if there was an error writing to the file
-                            Err(e) => panic!("There was an issue writing to the 'hours.txt' file. Error Kind: {}", e.kind())
-                        }
-                    }
-                }
-            } else {
-                // Checks if the file was created successfully, then stores the File in the mutable 'file' variable
-                match File::create("C:\\RLHoursFolder\\hours.txt") {
-                    Ok(mut file) => {
-                        // Store the total seconds, hours and the new String for the file in variables
-                        let total_seconds = sw.elapsed_ms() / 1000;
-                        let total_hours: f32 = (sw.elapsed_ms() as f32 / 1000.0) / 3600.0;
-                        let rl_hours_str = format!(
-                            "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}\n", total_seconds, total_hours, hours_past_two
-                        );
-
-                        // Checks if writing to the file was successful
-                        match file.write_all(&rl_hours_str.as_bytes()) {
-                            Ok(_) => println!("The hours file was successfully created"),
-                            // Panic if there was any kind of error during writing process
-                            Err(e) => panic!("There was an issue writing to the 'hours.txt' file. Error Kind: {}", e.kind())
-                        }
-                    }
-                    // Panic if there was an error when attempting to create the file
-                    Err(e) => panic!(
-                        "There was an error creating the 'hours.txt' file. Error Kind: {}",
-                        e.kind()
-                    ),
-                }
-            }
             break;
         }
         // Sleep for 1000ms at the end of every loop
@@ -351,7 +248,7 @@ fn closest_date(split_newline: &Vec<&str>) -> usize {
     let today = Local::now().date_naive();
     // Store the date two weeks ago
     let mut current_date = today - CDuration::days(14);
-    
+
     // While loop attempts to find what date is closest to the date two weeks ago, within the Vector
     while current_date <= today {
         // date_binary_search takes a reference of split_newline Vector and the current iteration of the date
@@ -413,7 +310,7 @@ fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
     while !is_zero {
         // Date Vector for current iteration
         let date_vec: Vec<&str> = split_newline[result].split_whitespace().collect();
-        // Date string reference for the current iteration 
+        // Date string reference for the current iteration
         let date_str = date_vec[0];
 
         // Check if result is equal to zero and if the date is equal to the date two weeks ago
@@ -575,6 +472,135 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
         "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}hrs\n",
         added_seconds, added_hours, past_two
     )
+}
+
+fn write_to_hours(
+    hours_result: Result<File, io::Error>,
+    seconds: &u64,
+    hours: &f32,
+    hours_past_two: &f32,
+    sw: &Stopwatch,
+) {
+    // Checks if the file exists, then stores the File into the mutable 'file' variable
+    if let Ok(mut file) = hours_result {
+        // Mutable variable to store file contents as a String
+        let mut contents = String::new();
+
+        // Checks if the file reads successfully, write new data to the file
+        if let Ok(_) = file.read_to_string(&mut contents) {
+            // Stores the new contents for the file as a String
+            let rl_hours_str = return_new_hours(&contents, seconds, hours, hours_past_two);
+
+            // Opens the file in write mode
+            let truncated_file = File::create("C:\\RLHoursFolder\\hours.txt");
+
+            // Checks if the file was exists, then stores the truncated File into the mutable 't_file' variable
+            if let Ok(mut t_file) = truncated_file {
+                // Checks if writing to the file was successful
+                match t_file.write_all(&rl_hours_str.as_bytes()) {
+                    Ok(_) => {
+                        // Prints the String contents and the elapsed time
+                        println!("{}", rl_hours_str);
+                        println!("Elapsed Time: {}s", seconds);
+                    }
+                    // Panics if there was an error writing to the file
+                    Err(e) => panic!(
+                        "There was an issue writing to the 'hours.txt' file. Error Kind: {}",
+                        e.kind()
+                    ),
+                }
+            }
+        }
+    } else {
+        // Checks if the file was created successfully, then stores the File in the mutable 'file' variable
+        match File::create("C:\\RLHoursFolder\\hours.txt") {
+            Ok(mut file) => {
+                // Store the total seconds, hours and the new String for the file in variables
+                let total_seconds = sw.elapsed_ms() / 1000;
+                let total_hours: f32 = (sw.elapsed_ms() as f32 / 1000.0) / 3600.0;
+                let rl_hours_str = format!(
+                                "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}\n", total_seconds, total_hours, hours_past_two
+                            );
+
+                // Checks if writing to the file was successful
+                match file.write_all(&rl_hours_str.as_bytes()) {
+                    Ok(_) => println!("The hours file was successfully created"),
+                    // Panic if there was any kind of error during writing process
+                    Err(e) => panic!(
+                        "There was an issue writing to the 'hours.txt' file. Error Kind: {}",
+                        e.kind()
+                    ),
+                }
+            }
+            // Panic if there was an error when attempting to create the file
+            Err(e) => panic!(
+                "There was an error creating the 'hours.txt' file. Error Kind: {}",
+                e.kind()
+            ),
+        }
+    }
+}
+
+fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) {
+    // Checks if the date file exists, then handles file operations
+    if let Ok(_) = date_result {
+        // Opens the date file in append mode
+        let append_date_result = File::options()
+            .append(true)
+            .open("C:\\RLHoursFolder\\date.txt");
+
+        // Checks if the file opens, then stores the File in the mutable 'date_file' variable
+        match append_date_result {
+            Ok(mut date_file) => {
+                // Store the current local date
+                let today = Local::now().date_naive();
+
+                // This String stores the date today, and the seconds elapsed in session
+                let today_str = format!("{} {}s\n", today, seconds);
+
+                // Checks if writing to the file was successful
+                match date_file.write_all(&today_str.as_bytes()) {
+                    Ok(_) => println!("{}", today_str),
+                    // Panics if there was an issue writing to the file
+                    Err(e) => panic!(
+                        "There was an error writing to the 'date.txt' file. Error Kind: {}",
+                        e.kind()
+                    ),
+                }
+            }
+            // Panics if there was an issue opening the file
+            Err(e) => panic!(
+                "There was an error opening the 'date.txt' file in append mode. Error Kind: {}",
+                e.kind()
+            ),
+        }
+    } else {
+        // Checks if the file was created, then stores the File in the mutable 'file' variable
+        match File::create("C:\\RLHoursFolder\\date.txt") {
+            Ok(mut file) => {
+                // Store the current local date
+                let today = Local::now().date_naive();
+
+                // This String stores the date today, and the seconds elapsed in session
+                let today_str = format!("{} {}s\n", today, seconds);
+
+                // Checks if writing to the file was successful
+                match file.write_all(&today_str.as_bytes()) {
+                    Ok(_) => println!("The date file was successfully created"),
+                    // Panics if there was an error writing to the file
+                    Err(e) => panic!(
+                        "There was an error writing to the 'date.txt' file. Error Kind: {}",
+                        e.kind()
+                    ),
+                }
+            }
+            // Panics if there was an error creating the file
+            Err(e) => panic!(
+                "There was an error creating the 'date.txt' file. Erorr Kind: {}",
+                e.kind()
+            ),
+        }
+    }
 }
 
 /// This function checks if the process passed in via `name: &str` is running and returns a [`bool`] value
