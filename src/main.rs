@@ -54,40 +54,45 @@ fn main() {
         println!("Past Two Updated!\n");
     }
 
-    // Main loop for the program
-    'main_loop: loop {
-        // Checks if the process is running
-        if check_for_process(process_name) {
-            // Begins the loop which records the seconds past after the process began
-            record_hours(process_name);
+    // Run the main loop
+    run_main_loop(process_name, &mut is_waiting, &mut option);
+}
 
-            // Change is_waiting value back to false
-            is_waiting = false;
-
-            // Allow user to choose whether to continue the program or end it
-            println!("End program (y/n)?");
-            io::stdin().read_line(&mut option).unwrap();
-
-            // Check the option the user gave and respond accordingly
-            if option.trim() == "y" || option.trim() == "Y" {
-                break 'main_loop;
-            } else if option.trim() == "n" || option.trim() == "N" {
-                option = String::new();
-                continue;
+fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String) {
+        // Main loop for the program
+        'main_loop: loop {
+            // Checks if the process is running
+            if check_for_process(process_name) {
+                // Begins the loop which records the seconds past after the process began
+                record_hours(process_name);
+    
+                // Change is_waiting value back to false
+                *is_waiting = false;
+    
+                // Allow user to choose whether to continue the program or end it
+                println!("End program (y/n)?");
+                io::stdin().read_line(option).unwrap();
+    
+                // Check the option the user gave and respond accordingly
+                if option.trim() == "y" || option.trim() == "Y" {
+                    break 'main_loop;
+                } else if option.trim() == "n" || option.trim() == "N" {
+                    *option = String::new();
+                    continue;
+                } else {
+                    println!("Unexpected input! Ending program.");
+                    break 'main_loop;
+                }
             } else {
-                println!("Unexpected input! Ending program.");
-                break 'main_loop;
+                // Print 'Waiting for Rocket League to start...' only once by changing the value of is_waiting to true
+                if !*is_waiting {
+                    println!("Waiting for Rocket League to start...");
+                    *is_waiting = true;
+                }
+                // Sleep for 1000ms after every loop to save on CPU usage
+                thread::sleep(Duration::from_millis(1000));
             }
-        } else {
-            // Print 'Waiting for Rocket League to start...' only once by changing the value of is_waiting to true
-            if !is_waiting {
-                println!("Waiting for Rocket League to start...");
-                is_waiting = true;
-            }
-            // Sleep for 1000ms after every loop to save on CPU usage
-            thread::sleep(Duration::from_millis(1000));
         }
-    }
 }
 
 /// This function takes in a reference string `process_name: &str` and starts a stopwatch
