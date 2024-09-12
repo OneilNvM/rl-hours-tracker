@@ -58,6 +58,8 @@ fn main() {
     run_main_loop(process_name, &mut is_waiting, &mut option);
 }
 
+/// This function runs the main loop of the program. This checks if the `RocketLeague.exe` process is running and
+/// runs the `record_hours` function if it is running, otherwise it will continue to wait for the process to start.
 fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String) {
     // Main loop for the program
     'main_loop: loop {
@@ -115,7 +117,7 @@ fn record_hours(process_name: &str) {
             // Stores the seconds elapsed as u64
             let seconds: u64 = sw.elapsed_ms() as u64 / 1000;
             // Stores the hours as f32
-            let hours: f32 = seconds as f32 / 3600.0;
+            let hours: f32 = (sw.elapsed_ms() as f32 / 1000_f32) / 3600_f32;
 
             // Opens both the hours file and date file in read mode if they exist
             let hours_result = File::open("C:\\RLHoursFolder\\hours.txt");
@@ -124,7 +126,7 @@ fn record_hours(process_name: &str) {
             write_to_date(date_result, &seconds);
 
             // Stores the hours past two by calling the calculate_past_two function and calculating the hours as f32
-            let hours_past_two = calculate_past_two() as f32 / 3600.0;
+            let hours_past_two = calculate_past_two() as f32 / 3600_f32;
 
             write_to_hours(hours_result, &seconds, &hours, &hours_past_two, &sw);
 
@@ -143,7 +145,7 @@ fn update_past_two() -> bool {
     // Open the 'hours.txt' file in read mode
     let hours_file_result = File::open("C:\\RLHoursFolder\\hours.txt");
     // Stores the calculated 'hours past two' as f32
-    let hours_past_two = calculate_past_two() as f32 / 3600.0;
+    let hours_past_two = calculate_past_two() as f32 / 3600_f32;
 
     // Checks if the 'hours.txt' file exists, then stores the File in the mutable 'file' variable
     if let Ok(mut file) = hours_file_result {
@@ -263,7 +265,7 @@ fn closest_date(split_newline: &Vec<&str>) -> usize {
         current_date += CDuration::days(1);
     }
 
-    // Return 0 if there are any issues
+    // Return usize::MAX if there are any issues
     usize::MAX
 }
 
@@ -468,7 +470,7 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
     let (old_seconds, old_hours) = time;
 
     // Add the new seconds and the new hours to the old
-    let added_seconds = old_seconds + *seconds as u64;
+    let added_seconds = old_seconds + *seconds;
     let added_hours = old_hours + *hours;
 
     // Return the new string of the file contents to be written to the file
@@ -478,6 +480,7 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
     )
 }
 
+/// This function writes the new contents to the `hours.txt` file. This includes the total `seconds`, `hours`, and `hours_past_two`. 
 fn write_to_hours(
     hours_result: Result<File, io::Error>,
     seconds: &u64,
@@ -521,7 +524,7 @@ fn write_to_hours(
             Ok(mut file) => {
                 // Store the total seconds, hours and the new String for the file in variables
                 let total_seconds = sw.elapsed_ms() / 1000;
-                let total_hours: f32 = (sw.elapsed_ms() as f32 / 1000.0) / 3600.0;
+                let total_hours: f32 = (sw.elapsed_ms() as f32 / 1000_f32) / 3600_f32;
                 let rl_hours_str = format!(
                                 "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}\n", total_seconds, total_hours, hours_past_two
                             );
@@ -545,6 +548,9 @@ fn write_to_hours(
     }
 }
 
+/// This function writes new contents to the `date.txt` file. This uses the [`Local`] struct which allows us to use the [`Local::now()`]
+/// function to retrieve the local date and time as [`DateTime<Local>`]. The date is then turned into a [`NaiveDate`] by using [`DateTime<Local>::date_naive()`]
+/// which returns us the date by itself.
 fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) {
     // Checks if the date file exists, then handles file operations
     if let Ok(_) = date_result {
