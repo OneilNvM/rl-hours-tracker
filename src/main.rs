@@ -15,6 +15,7 @@ use chrono::prelude::*;
 use chrono::Duration as CDuration;
 use std::io::ErrorKind;
 use std::thread;
+use std::u64;
 use std::usize;
 use std::{fs, io};
 use std::{
@@ -126,9 +127,15 @@ fn record_hours(process_name: &str) {
             write_to_date(date_result, &seconds);
 
             // Stores the hours past two by calling the calculate_past_two function and calculating the hours as f32
-            let hours_past_two = calculate_past_two() as f32 / 3600_f32;
+            let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
 
-            write_to_hours(hours_result, &seconds, &hours, &hours_past_two, &sw);
+            if hours_buffer != u64::MAX {
+                let hours_past_two = hours_buffer as f32 / 3600_f32;
+
+                write_to_hours(hours_result, &seconds, &hours, &hours_past_two, &sw);
+            } else {
+                println!("The hours in the past two weeks was not calculated.");
+            }
 
             break;
         }
@@ -145,7 +152,16 @@ fn update_past_two() -> bool {
     // Open the 'hours.txt' file in read mode
     let hours_file_result = File::open("C:\\RLHoursFolder\\hours.txt");
     // Stores the calculated 'hours past two' as f32
-    let hours_past_two = calculate_past_two() as f32 / 3600_f32;
+    let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
+
+    let hours_past_two ;
+
+    if hours_buffer != u64::MAX {
+        hours_past_two = hours_buffer
+    } else {
+        println!("Past two was not calculated.");
+        return false
+    }
 
     // Checks if the 'hours.txt' file exists, then stores the File in the mutable 'file' variable
     if let Ok(mut file) = hours_file_result {
@@ -347,7 +363,7 @@ fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
 /// It is then ordered and looped through in order to compare the date to the current iteration of the date two weeks ago.
 /// The seconds are retrieved from the dates that match the current date in the iteration of the while loop and the seconds
 /// are added to `seconds_past_two` which is returned at the end of the function.
-fn calculate_past_two() -> u64 {
+fn calculate_past_two() -> Option<u64> {
     // Open the 'date.txt' file in read mode
     let date_file_result = File::open("C:\\RLHoursFolder\\date.txt");
     // Initialize a mutable variable as u64 for the seconds past two
@@ -401,7 +417,8 @@ fn calculate_past_two() -> u64 {
                         if closest != usize::MAX {
                             split_line_copy = &split_newline[closest..];
                         } else {
-                            panic!("The closest date could not be found.");
+                            println!("The closest date could not be found");
+                            return None
                         }
                     }
 
@@ -457,7 +474,7 @@ fn calculate_past_two() -> u64 {
         // Panics if there was an error opening the file
         Err(e) => println!("Past Two not calculated. Error Kind: {}", e.kind()),
     }
-    seconds_past_two
+    Some(seconds_past_two)
 }
 
 /// This function constructs a new [`String`] which will have the contents to write to `hours.txt` with new hours and seconds
