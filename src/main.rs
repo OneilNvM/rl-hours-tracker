@@ -172,12 +172,12 @@ fn update_past_two() -> bool {
                             // Return true to val
                             Ok(_) => true,
                             // Panic if there was an error when writing to the file
-                            Err(e) => panic!("There was an error writing to the 'hours.txt' file. Error Kind: {}", e.kind())
+                            Err(e) => panic!("Error occurred in 'update_past_two' function: There was an issue writing to 'hours.txt'.\nError Kind: {}", e.kind())
                         }
                     }
                     // Panic if there was an error creating the file
                     Err(e) => panic!(
-                        "There was an error creating the 'hours.txt' file. Error Kind: {}",
+                        "Error occurred in 'update_past_two' function: There was an issue with file creation.\nError kind: {}",
                         e.kind()
                     ),
                 }
@@ -301,7 +301,7 @@ fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
             low = mid + 1;
         } else {
             if mid == 0 {
-                return result;
+                break;
             }
             high = mid - 1;
         }
@@ -449,7 +449,7 @@ fn calculate_past_two() -> u64 {
                 }
                 // Panics if there was an error reading the file
                 Err(e) => panic!(
-                    "There was an error reading the 'date.txt' file. Error Kind: {}",
+                    "Error occurred in 'calculate_past_two' function: There was an issue reading 'date.txt'.\nError Kind: {}",
                     e.kind()
                 ),
             }
@@ -480,7 +480,7 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
     )
 }
 
-/// This function writes the new contents to the `hours.txt` file. This includes the total `seconds`, `hours`, and `hours_past_two`. 
+/// This function writes the new contents to the `hours.txt` file. This includes the total `seconds`, `hours`, and `hours_past_two`.
 fn write_to_hours(
     hours_result: Result<File, io::Error>,
     seconds: &u64,
@@ -512,7 +512,7 @@ fn write_to_hours(
                     }
                     // Panics if there was an error writing to the file
                     Err(e) => panic!(
-                        "There was an issue writing to the 'hours.txt' file. Error Kind: {}",
+                        "Error occurred in 'write_to_hours' function: There was an issue when truncating 'hours.txt'.\nError Kind: {}",
                         e.kind()
                     ),
                 }
@@ -534,14 +534,14 @@ fn write_to_hours(
                     Ok(_) => println!("The hours file was successfully created"),
                     // Panic if there was any kind of error during writing process
                     Err(e) => panic!(
-                        "There was an issue writing to the 'hours.txt' file. Error Kind: {}",
+                        "Error occurred in 'write_to_hours' function: There was an issue writing to 'hours.txt'.\nError Kind: {}",
                         e.kind()
                     ),
                 }
             }
             // Panic if there was an error when attempting to create the file
             Err(e) => panic!(
-                "There was an error creating the 'hours.txt' file. Error Kind: {}",
+                "Error occurred in 'write_to_hours' function: There was an issue creating 'hours.txt'.\nError Kind: {}",
                 e.kind()
             ),
         }
@@ -573,14 +573,14 @@ fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) {
                     Ok(_) => println!("{}", today_str),
                     // Panics if there was an issue writing to the file
                     Err(e) => panic!(
-                        "There was an error writing to the 'date.txt' file. Error Kind: {}",
+                        "Error occurred in 'write_to_date' function: There was an issue appending to 'date.txt'.\nError Kind: {}",
                         e.kind()
                     ),
                 }
             }
             // Panics if there was an issue opening the file
             Err(e) => panic!(
-                "There was an error opening the 'date.txt' file in append mode. Error Kind: {}",
+                "Error occurred in 'write_to_date' function: There was an issue opening 'date.txt'.\nError Kind: {}",
                 e.kind()
             ),
         }
@@ -599,14 +599,14 @@ fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) {
                     Ok(_) => println!("The date file was successfully created"),
                     // Panics if there was an error writing to the file
                     Err(e) => panic!(
-                        "There was an error writing to the 'date.txt' file. Error Kind: {}",
+                        "Error occurred in 'write_to_date' function: There was an issue writing to 'date.txt'.\nError Kind: {}",
                         e.kind()
                     ),
                 }
             }
             // Panics if there was an error creating the file
             Err(e) => panic!(
-                "There was an error creating the 'date.txt' file. Erorr Kind: {}",
+                "Error occurred in 'write_to_date' function: There was an issue creating 'date.txt'.\nErorr Kind: {}",
                 e.kind()
             ),
         }
