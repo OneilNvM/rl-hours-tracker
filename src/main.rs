@@ -124,16 +124,25 @@ fn record_hours(process_name: &str) {
             let hours_result = File::open("C:\\RLHoursFolder\\hours.txt");
             let date_result = File::open("C:\\RLHoursFolder\\date.txt");
 
+            // Calls the function which writes the date the program is run, along with the seconds elapsed during
+            // the session to the 'date.txt' file
             write_to_date(date_result, &seconds);
 
-            // Stores the hours past two by calling the calculate_past_two function and calculating the hours as f32
+            // Buffer which stores the hours in the past two weeks
+            // The 'Some' value is unwrapped if there were no issues or 'u64::MAX'
+            // is the value if there were issues
             let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
 
+            // This condition checks the value of the buffer
             if hours_buffer != u64::MAX {
+                // Stores the hours in the past two weeks as f32
                 let hours_past_two = hours_buffer as f32 / 3600_f32;
 
+                // Calls the function to write the total seconds, hours, and hours in the past two weeks
+                // to the 'hours.txt' file
                 write_to_hours(hours_result, &seconds, &hours, &hours_past_two, &sw);
             } else {
+                // Prints this line if the hours in the past two weeks were not calculated
                 println!("The hours in the past two weeks was not calculated.");
             }
 
@@ -151,14 +160,21 @@ fn record_hours(process_name: &str) {
 fn update_past_two() -> bool {
     // Open the 'hours.txt' file in read mode
     let hours_file_result = File::open("C:\\RLHoursFolder\\hours.txt");
-    // Stores the calculated 'hours past two' as f32
+
+    // Buffer which stores the hours in the past two weeks
+    // The 'Some' value is unwrapped if there were no issues or 'u64::MAX'
+    // is the value if there were issues
     let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
 
+    // Uninitialized variable for the hours in the past two weeks
     let hours_past_two;
 
+    // This condition checks the value of the buffer
     if hours_buffer != u64::MAX {
+        // Set the uninitialized variable to the buffer value
         hours_past_two = hours_buffer
     } else {
+        // Prints this line and returns false
         println!("Past two was not calculated.");
         return false
     }
