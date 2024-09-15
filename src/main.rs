@@ -11,6 +11,7 @@
 //! ```
 //!     println!("You got it Oneil :)");
 //! ```
+use build_html::HtmlTag;
 use chrono::prelude::*;
 use chrono::Duration as CDuration;
 use std::io::ErrorKind;
@@ -25,6 +26,8 @@ use std::{
 };
 use stopwatch::Stopwatch;
 use sysinfo::System;
+use build_html::{Html, HtmlPage, HtmlContainer, HtmlElement};
+use webbrowser;
 
 fn main() {
     // String reference of the Rocket League process name
@@ -59,6 +62,83 @@ fn main() {
     run_main_loop(process_name, &mut is_waiting, &mut option);
 }
 
+fn generate_website_html() {
+    let index = File::create("C:\\RLHoursFolder\\index.html");
+    let hours_file = File::open("C:\\RLHoursFolder\\hours.txt");
+    let date_file = File::open("C:\\RLHoursFolder\\date.txt");
+
+    let mut page = HtmlPage::new().with_title("Rocket League Hours Tracker");
+
+    match index {
+        Ok(mut idx_file) => {
+            let mut hrs_content = String::new();
+            let mut date_content = String::new();
+
+            if let Ok(mut hrs_file) = hours_file {
+                if let Ok(_) = hrs_file.read_to_string(&mut hrs_content) {
+                    println!("Hours Content: {}", hrs_content);
+                }
+            }
+
+            if let Ok(mut dt_file) = date_file {
+                if let Ok(_) = dt_file.read_to_string(&mut date_content) {
+                    println!("Date Content: {}", date_content);
+                }
+            }
+
+            let mut hrs_lines: Vec<&str> = hrs_content.split("\n").collect();
+            let mut date_lines: Vec<&str> = date_content.split("\n").collect();
+
+            hrs_lines.pop();
+            date_lines.pop();
+
+            let main_heading = HtmlElement::new(HtmlTag::Heading1).with_child(hrs_lines.remove(0).into());
+            let hours_heading = HtmlElement::new(HtmlTag::Heading2).with_child("Hours File".into());
+            let date_heading = HtmlElement::new(HtmlTag::Heading2).with_child("Date File".into());
+
+            let mut hours_div_elem = HtmlElement::new(HtmlTag::Div);
+            let mut date_div_elem = HtmlElement::new(HtmlTag::Div);
+
+            hours_div_elem.add_child(hours_heading.into());
+            date_div_elem.add_child(date_heading.into());
+
+            for line in hrs_lines {
+                hours_div_elem.add_paragraph(line);
+            }
+
+            for line in date_lines {
+                date_div_elem.add_paragraph(line);
+            }
+
+            page.add_raw(main_heading.to_html_string());
+
+            page.add_raw(hours_div_elem.to_html_string());
+
+            page.add_raw(date_div_elem.to_html_string());
+
+            let contents = page.to_html_string();
+
+            if let Ok(_) = idx_file.write_all(&contents.as_bytes()) {
+                println!("Contents: {}", contents);
+
+                let mut option = String::new();
+
+                println!("Open hours website in browser (y/n)?");
+                io::stdin().read_line(&mut option).unwrap();
+
+                if option.trim() == "y" || option.trim() == "Y" {
+                    if webbrowser::open("C:\\RLHoursFolder\\index.html").is_ok() {
+                        println!("200 OK");
+                    };
+                }
+            }
+        }
+        Err(e) => {
+            panic!("There was an issue with html: {:?}", e);
+        }
+    }
+}
+
 /// This function runs the main loop of the program. This checks if the `RocketLeague.exe` process is running and
 /// runs the `record_hours` function if it is running, otherwise it will continue to wait for the process to start.
 fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String) {
@@ -68,6 +148,8 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
         if check_for_process(process_name) {
             // Begins the loop which records the seconds past after the process began
             record_hours(process_name);
+
+            generate_website_html();
 
             // Change is_waiting value back to false
             *is_waiting = false;
@@ -186,7 +268,10 @@ fn update_past_two() -> bool {
                         // Checks if writing to the file was successful
                         match w_file.write_all(&rl_hours_str.as_bytes()) {
                             // Return true to val
-                            Ok(_) => true,
+                            Ok(_) => {
+                                generate_website_html();
+                                true
+                            },
                             // Panic if there was an error when writing to the file
                             Err(e) => panic!("Error occurred in 'update_past_two' function: There was an issue writing to 'hours.txt'.\nError Kind: {}", e.kind())
                         }
