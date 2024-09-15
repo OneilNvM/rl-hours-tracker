@@ -157,7 +157,7 @@ fn update_past_two() -> bool {
     let hours_past_two ;
 
     if hours_buffer != u64::MAX {
-        hours_past_two = hours_buffer
+        hours_past_two = hours_buffer as f32 / 3600_f32;
     } else {
         println!("Past two was not calculated.");
         return false
