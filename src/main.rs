@@ -172,7 +172,7 @@ fn update_past_two() -> bool {
     // This condition checks the value of the buffer
     if hours_buffer != u64::MAX {
         // Set the uninitialized variable to the buffer value
-        hours_past_two = hours_buffer
+        hours_past_two = hours_buffer as f32 / 3600_f32;
     } else {
         // Prints this line and returns false
         println!("Past two was not calculated.");
