@@ -8,7 +8,7 @@
 //! It is `HIGHLY` recommended to not manually alter the files that are created by this program
 //! otherwise it could lead to unwanted behaviour by the program
 //!
-//! ```
+//! ``` rust
 //!     println!("You got it Oneil :)");
 //! ```
 use chrono::prelude::*;
@@ -60,7 +60,7 @@ fn main() {
 }
 
 /// This function runs the main loop of the program. This checks if the `RocketLeague.exe` process is running and
-/// runs the `record_hours` function if it is running, otherwise it will continue to wait for the process to start.
+/// runs the [`record_hours`] function if it is running, otherwise it will continue to wait for the process to start.
 fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String) {
     // Main loop for the program
     'main_loop: loop {
@@ -124,16 +124,25 @@ fn record_hours(process_name: &str) {
             let hours_result = File::open("C:\\RLHoursFolder\\hours.txt");
             let date_result = File::open("C:\\RLHoursFolder\\date.txt");
 
+            // Calls the function which writes the date the program is run, along with the seconds elapsed during
+            // the session to the 'date.txt' file
             write_to_date(date_result, &seconds);
 
-            // Stores the hours past two by calling the calculate_past_two function and calculating the hours as f32
+            // Buffer which stores the hours in the past two weeks
+            // The 'Some' value is unwrapped if there were no issues or 'u64::MAX'
+            // is the value if there were issues
             let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
 
+            // This condition checks the value of the buffer
             if hours_buffer != u64::MAX {
+                // Stores the hours in the past two weeks as f32
                 let hours_past_two = hours_buffer as f32 / 3600_f32;
 
+                // Calls the function to write the total seconds, hours, and hours in the past two weeks
+                // to the 'hours.txt' file
                 write_to_hours(hours_result, &seconds, &hours, &hours_past_two, &sw);
             } else {
+                // Prints this line if the hours in the past two weeks were not calculated
                 println!("The hours in the past two weeks was not calculated.");
             }
 
@@ -145,20 +154,27 @@ fn record_hours(process_name: &str) {
 }
 
 /// This function updates the hours in the past two weeks in the `hours.txt` file.
-/// The hours past two is calculated through the `calculate_past_two` function (Go to function for more details)
+/// The hours past two is calculated through the [`calculate_past_two`] function
 /// The function returns `true` if the new string has been written to `hours.txt`.
 /// `false` is returned if `hours.txt` does not exist.
 fn update_past_two() -> bool {
     // Open the 'hours.txt' file in read mode
     let hours_file_result = File::open("C:\\RLHoursFolder\\hours.txt");
-    // Stores the calculated 'hours past two' as f32
+
+    // Buffer which stores the hours in the past two weeks
+    // The 'Some' value is unwrapped if there were no issues or 'u64::MAX'
+    // is the value if there were issues
     let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
 
-    let hours_past_two ;
+    // Uninitialized variable for the hours in the past two weeks
+    let hours_past_two;
 
+    // This condition checks the value of the buffer
     if hours_buffer != u64::MAX {
+        // Set the uninitialized variable to the buffer value
         hours_past_two = hours_buffer as f32 / 3600_f32;
     } else {
+        // Prints this line and returns false
         println!("Past two was not calculated.");
         return false
     }
@@ -259,7 +275,7 @@ fn retrieve_time(contents: &String) -> (u64, f32) {
     (old_seconds, old_hours)
 }
 
-/// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`usize`] as an index of the closest
+/// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`prim@usize`] as an index of the closest
 /// after the date two weeks ago.
 fn closest_date(split_newline: &Vec<&str>) -> usize {
     // Store the local date today
@@ -286,7 +302,7 @@ fn closest_date(split_newline: &Vec<&str>) -> usize {
 }
 
 /// This function is used to perform a binary search on a [`Vec<&str>`] Vector and compares the dates in the Vector with
-/// the `c_date` [`String`]. The function then returns a [`usize`] for the index of the date, or a [`usize::MAX`] if the
+/// the `c_date` [`String`]. The function then returns a [`prim@usize`] for the index of the date, or a [`usize::MAX`] if the
 /// date is not present.
 fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
     // Initialize mutable variable 'high' with last index of Vector
@@ -358,11 +374,11 @@ fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
     usize::MAX
 }
 
-/// This function calculates the hours recorded in the past two weeks and returns the total number of seconds as [`u64`]
+/// This function calculates the hours recorded in the past two weeks and returns the total number of seconds as [`prim@u64`]
 /// The contents from `date.txt` are read and split by `\n` character and stored in a [`Vec<&str>`] Vector.
 /// It is then ordered and looped through in order to compare the date to the current iteration of the date two weeks ago.
 /// The seconds are retrieved from the dates that match the current date in the iteration of the while loop and the seconds
-/// are added to `seconds_past_two` which is returned at the end of the function.
+/// are added to `seconds_past_two` which is returned as an [`Option<u64>`] at the end of the function.
 fn calculate_past_two() -> Option<u64> {
     // Open the 'date.txt' file in read mode
     let date_file_result = File::open("C:\\RLHoursFolder\\date.txt");
