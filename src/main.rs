@@ -11,7 +11,8 @@
 //! ```
 //!     println!("You got it Oneil :)");
 //! ```
-use build_html::HtmlTag;
+use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlPage};
+use build_html::{HtmlElement, HtmlTag};
 use chrono::prelude::*;
 use chrono::Duration as CDuration;
 use std::io::ErrorKind;
@@ -26,8 +27,188 @@ use std::{
 };
 use stopwatch::Stopwatch;
 use sysinfo::System;
-use build_html::{Html, HtmlPage, HtmlContainer, HtmlElement};
 use webbrowser;
+
+const MAIN_STYLES_STRING: &str = "* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+@media (prefers-color-scheme: light) {
+    .body.adaptive {
+        background: linear-gradient(to bottom, rgb(255, 255, 255), rgb(123, 123, 123));
+        color: black;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .body.adaptive {
+        background: #131313;
+        color: white;
+    }
+}
+
+.body {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    grid-template-rows: 2.6fr 2fr 0.5fr;
+    grid-template-areas: 
+    \"hdr hdr\"
+    \"main nav\"
+    \"ftr ftr\";
+    gap: 1em;
+}
+
+.hours-div.adaptive {
+    background-color: #343434;
+}
+
+.dates-div.adaptive {
+    background-color: #343434;
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+}
+
+.flex-align-justify-center {
+    align-items: center;
+    justify-content: center;
+}
+
+.bebas-neue-regular {
+    font-family: \"Bebas Neue\", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.oswald-font-200 {
+    font-family: \"Oswald\", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 200;
+    font-style: normal;
+}
+
+.oswald-font-300 {
+    font-family: \"Oswald\", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 300;
+    font-style: normal;
+}
+
+.oswald-font-400 {
+    font-family: \"Oswald\", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.oswald-font-500 {
+    font-family: \"Oswald\", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-style: normal;
+}
+
+.oswald-font-600 {
+    font-family: \"Oswald\", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-style: normal;
+}
+
+.oswald-font-700 {
+    font-family: \"Oswald\", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-style: normal;
+}
+";
+
+const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
+
+.header {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    grid-area: hdr;
+}
+
+.nav {
+    position: sticky;
+    top: 0;
+    grid-area: nav;
+}
+
+.main {
+    gap: 10em;
+    grid-area: main;
+}
+
+.footer {
+    grid-area: ftr;
+}
+
+.main-title {
+    font-size: 10em;
+    text-align: center;
+    transform: matrix3d(
+        1, 0, 0, 0,
+        0, 1, 0, -0.003,
+        0, 0, 1, 0,
+        0, 0, 0, 1.5);
+}
+
+.hours-div {
+    width: 50%;
+    height: fit-content;
+    min-width: 90ch;
+    margin-left: 15%;
+    padding-left: 10em;
+    padding-right: 10em;
+    padding-top: 2em;
+    padding-bottom: 5em;
+    border: 1px black solid;
+    border-radius: 4em;
+    background-color: grey;
+}
+
+.hours-div h2 {
+    font-size: 5em;
+}
+
+.hours-div p {
+    font-size: 2em;
+}
+
+.dates-div {
+    width: 50%;
+    height: fit-content;
+    min-width: 90ch;
+    margin-left: 15%;
+    padding-left: 10em;
+    padding-right: 10em;
+    padding-top: 2em;
+    padding-bottom: 5em;
+    border: 1px black solid;
+    border-radius: 4em;
+    background-color: grey;
+}
+
+.dates-div h2 {
+    font-size: 5em;
+}
+
+.dates-div p {
+    font-size: 2em;
+}";
 
 fn main() {
     // String reference of the Rocket League process name
@@ -39,6 +220,7 @@ fn main() {
 
     // Create the folder directory RLHoursFolder on the C: drive
     let folder = fs::create_dir("C:\\RLHoursFolder");
+    let website_folder = fs::create_dir("C:\\RLHoursFolder\\website");
 
     // Match block to handle Ok and Err variants
     match folder {
@@ -46,10 +228,19 @@ fn main() {
         Err(e) => {
             if e.kind() != ErrorKind::AlreadyExists {
                 panic!(
-                    "Folder was not created due to an error!\nError Kind: {}\n",
+                    "Rocket League Hours folder was not created due to an error!\nError Kind: {}\n",
                     e.kind()
                 );
             } // Failed folder creation
+        }
+    }
+
+    match website_folder {
+        Ok(_) => println!("Website folder created in RLHoursFolder!"),
+        Err(e) => {
+            if e.kind() != ErrorKind::AlreadyExists {
+                panic!("Website folder was not created due to an error!\nError Kind: {}\n", e.kind());
+            }
         }
     }
 
@@ -62,12 +253,41 @@ fn main() {
     run_main_loop(process_name, &mut is_waiting, &mut option);
 }
 
-fn generate_website_html() {
-    let index = File::create("C:\\RLHoursFolder\\index.html");
+fn generate_website_html(boolean: bool) {
+    let index = File::create("C:\\RLHoursFolder\\website\\index.html");
+    let main_styles = File::create("C:\\RLHoursFolder\\website\\main.css");
+    let home_styles = File::create("C:\\RLHoursFolder\\website\\home.css");
     let hours_file = File::open("C:\\RLHoursFolder\\hours.txt");
     let date_file = File::open("C:\\RLHoursFolder\\date.txt");
 
-    let mut page = HtmlPage::new().with_title("Rocket League Hours Tracker");
+    let mut page = HtmlPage::new()
+    .with_title("Rocket League Hours Tracker")
+    .with_meta(vec![("charset", "UTF-8")])
+    .with_meta(vec![("name", "viewport"), ("content", "width=device-width, initial-scale=1.0")])
+    .with_head_link("main.css", "stylesheet")
+    .with_head_link("home.css", "stylesheet")
+    .with_head_link("https://fonts.googleapis.com", "preconnect")
+    .with_head_link_attr("https://fonts.gstatic.com", "preconnect", [("crossorigin", "")])
+    .with_head_link("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap", "stylesheet")
+    .with_head_link("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@200..700&display=swap", "stylesheet");
+
+    match main_styles {
+        Ok(mut ms_file) => {
+            if let Ok(_) = ms_file.write_all(&mut MAIN_STYLES_STRING.as_bytes()) {
+                println!("SUCCESS");
+            }
+        }
+        Err(e) => panic!("There was an issue with main styles: {:?}", e)
+    }
+
+    match home_styles {
+        Ok(mut hs_file) => {
+            if let Ok(_) = hs_file.write_all(&mut HOME_STYLES_STRING.as_bytes()) {
+                println!("SUCCESS");
+            }
+        }
+        Err(e) => panic!("There was an issue with main styles: {:?}", e)
+    }
 
     match index {
         Ok(mut idx_file) => {
@@ -76,66 +296,98 @@ fn generate_website_html() {
 
             if let Ok(mut hrs_file) = hours_file {
                 if let Ok(_) = hrs_file.read_to_string(&mut hrs_content) {
-                    println!("Hours Content: {}", hrs_content);
+                    println!("SUCCESS");
                 }
             }
 
             if let Ok(mut dt_file) = date_file {
                 if let Ok(_) = dt_file.read_to_string(&mut date_content) {
-                    println!("Date Content: {}", date_content);
+                    println!("SUCCESS");
                 }
             }
 
             let mut hrs_lines: Vec<&str> = hrs_content.split("\n").collect();
             let mut date_lines: Vec<&str> = date_content.split("\n").collect();
 
-            hrs_lines.pop();
             date_lines.pop();
 
-            let main_heading = HtmlElement::new(HtmlTag::Heading1).with_child(hrs_lines.remove(0).into());
-            let hours_heading = HtmlElement::new(HtmlTag::Heading2).with_child("Hours File".into());
-            let date_heading = HtmlElement::new(HtmlTag::Heading2).with_child("Date File".into());
+            let main_heading_vec: Vec<&str> = hrs_lines.remove(0).split_whitespace().collect();
 
-            let mut hours_div_elem = HtmlElement::new(HtmlTag::Div);
-            let mut date_div_elem = HtmlElement::new(HtmlTag::Div);
+            let main_heading = format!("{} {}<br>{} Tracker", main_heading_vec[0], main_heading_vec[1], main_heading_vec[2]);
 
-            hours_div_elem.add_child(hours_heading.into());
-            date_div_elem.add_child(date_heading.into());
+            page.add_container(
+                Container::new(ContainerType::Header)
+                    .with_attributes(vec![("class", "header")])
+                    .with_container(Container::new(ContainerType::Div).with_header_attr(
+                        1,
+                        main_heading,
+                        vec![("class", "main-title bebas-neue-regular")],
+                    )),
+            );
+
+            page.add_container(
+                Container::new(ContainerType::Nav)
+                    .with_attributes(vec![("class", "nav")])
+                    .with_container(Container::new(ContainerType::Div).with_paragraph("Nav")),
+            );
+
+            let mut hours_div = HtmlElement::new(HtmlTag::Div)
+                .with_attribute(
+                    "class",
+                    "hours-div flex-column fles-align-justify-center adaptive",
+                )
+                .with_header(2, "Hours File");
+
+            let mut dates_div = HtmlElement::new(HtmlTag::Div)
+                .with_attribute(
+                    "class",
+                    "dates-div flex-column flex-align-justify-center adaptive",
+                )
+                .with_header(2, "Dates File");
 
             for line in hrs_lines {
-                hours_div_elem.add_paragraph(line);
+                hours_div.add_paragraph(line);
             }
 
             for line in date_lines {
-                date_div_elem.add_paragraph(line);
+                dates_div.add_paragraph(line);
             }
 
-            page.add_raw(main_heading.to_html_string());
+            page.add_container(
+                Container::new(ContainerType::Main)
+                    .with_attributes(vec![("class", "main flex-column oswald-font-500")])
+                    .with_html(hours_div)
+                    .with_html(dates_div)
+            );
 
-            page.add_raw(hours_div_elem.to_html_string());
+            page.add_container(
+                Container::new(ContainerType::Footer)
+                    .with_attributes(vec![("class", "footer oswald-font-700")])
+                    .with_paragraph("OneilNvM 2024 &copy;"),
+            );
 
-            page.add_raw(date_div_elem.to_html_string());
-
-            let contents = page.to_html_string();
+            let contents = page
+                .to_html_string()
+                .replace("<body>", "<body class=\"body adaptive\">");
 
             if let Ok(_) = idx_file.write_all(&contents.as_bytes()) {
-                println!("Contents: {}", contents);
+                println!("Contents length: {}", contents.len());
 
-                let mut option = String::new();
+                if boolean == true {
+                    let mut option = String::new();
 
-                println!("Open hours website in browser (y/n)?");
-                io::stdin().read_line(&mut option).unwrap();
+                    println!("Open hours website in browser (y/n)?");
+                    io::stdin().read_line(&mut option).unwrap();
 
-                if option.trim() == "y" || option.trim() == "Y" {
-                    if webbrowser::open("C:\\RLHoursFolder\\index.html").is_ok() {
-                        println!("200 OK");
-                    };
+                    if option.trim() == "y" || option.trim() == "Y" {
+                        if webbrowser::open("C:\\RLHoursFolder\\website\\index.html").is_ok() {
+                            println!("200 OK");
+                        };
+                    }
                 }
             }
         }
-        Err(e) => {
-            panic!("There was an issue with html: {:?}", e);
-        }
+        Err(e) =>  panic!("There was an issue with html: {:?}", e)
     }
 }
 
@@ -149,7 +401,7 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
             // Begins the loop which records the seconds past after the process began
             record_hours(process_name);
 
-            generate_website_html();
+            generate_website_html(true);
 
             // Change is_waiting value back to false
             *is_waiting = false;
@@ -236,13 +488,13 @@ fn update_past_two() -> bool {
     // Stores the calculated 'hours past two' as f32
     let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
 
-    let hours_past_two ;
+    let hours_past_two;
 
     if hours_buffer != u64::MAX {
         hours_past_two = hours_buffer as f32 / 3600_f32;
     } else {
         println!("Past two was not calculated.");
-        return false
+        return false;
     }
 
     // Checks if the 'hours.txt' file exists, then stores the File in the mutable 'file' variable
@@ -269,7 +521,7 @@ fn update_past_two() -> bool {
                         match w_file.write_all(&rl_hours_str.as_bytes()) {
                             // Return true to val
                             Ok(_) => {
-                                generate_website_html();
+                                generate_website_html(false);
                                 true
                             },
                             // Panic if there was an error when writing to the file
