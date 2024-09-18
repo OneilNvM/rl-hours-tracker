@@ -37,8 +37,16 @@ const MAIN_STYLES_STRING: &str = "* {
 
 @media (prefers-color-scheme: light) {
     .body.adaptive {
-        background: linear-gradient(to bottom, rgb(255, 255, 255), rgb(123, 123, 123));
+        background: linear-gradient(to bottom, rgb(255, 255, 255), #9b9b9b);
         color: black;
+    }
+
+    .hours-div.adaptive {
+        background-color: #fff5e2;
+    }
+
+    .dates-div.adaptive {
+        background-color: #fff5e2;
     }
 }
 
@@ -47,25 +55,39 @@ const MAIN_STYLES_STRING: &str = "* {
         background: #131313;
         color: white;
     }
+
+    .hours-div.adaptive {
+        background-color: #343434;
+    }
+
+    .dates-div.adaptive {
+        background-color: #343434;
+    }
+}
+
+@keyframes fade-in {
+    0% {
+        opacity: 0%;
+    }
+
+    100% {
+        opacity: 100%;
+    }
 }
 
 .body {
     display: grid;
     grid-template-columns: 3fr 1fr;
-    grid-template-rows: 2.6fr 2fr 0.5fr;
-    grid-template-areas: 
-    \"hdr hdr\"
-    \"main nav\"
-    \"ftr ftr\";
-    gap: 1em;
-}
-
-.hours-div.adaptive {
-    background-color: #343434;
-}
-
-.dates-div.adaptive {
-    background-color: #343434;
+    grid-template-rows: 1.5fr 2fr 0.5fr;
+    grid-template-areas:
+        \"hdr hdr\"
+        \"main nav\"
+        \"ftr ftr\";
+    row-gap: 1em;
+    column-gap: 30em;
+    animation-name: fade-in;
+    animation-duration: 1s;
+    animation-timing-function: ease-in;
 }
 
 .flex-column {
@@ -129,8 +151,7 @@ const MAIN_STYLES_STRING: &str = "* {
     font-optical-sizing: auto;
     font-weight: 700;
     font-style: normal;
-}
-";
+}";
 
 const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
 
@@ -142,23 +163,39 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
 }
 
 .nav {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    right: 2em;
+    top: 1em;
     grid-area: nav;
 }
 
 .main {
-    gap: 10em;
+    gap: 20em;
+    justify-content: center;
     grid-area: main;
 }
 
 .footer {
+    justify-content: space-between;
+    align-items: end;
+    padding: 0.1em;
     grid-area: ftr;
 }
 
+/* Header Related Styling */
+
 .main-title {
-    font-size: 10em;
+    background-image: url(https://media.graphassets.com/resize=fit:clip,height:720,width:1280/output=format:webp/3jpQ4ljjRcGCAfNdzVUG);
+    background-color: rgba(255, 255, 255, 0.253);
+    color: transparent;
+    background-clip: text;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    font-size: 12em;
     text-align: center;
+    filter: contrast(1);
+    /* text-shadow: 0 0 0.1em rgb(255, 255, 255); */
     transform: matrix3d(
         1, 0, 0, 0,
         0, 1, 0, -0.003,
@@ -166,48 +203,175 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
         0, 0, 0, 1.5);
 }
 
+/* Nav Related Styling */
+
+.nav-container {
+    height: 100%;
+    align-items: center;
+    gap: 3em;
+}
+
+.your-hours-div {
+    text-align: center;
+    width: 100%;
+    height: 100%;
+    font-size: 2em;
+}
+
+.your-hours-div a {
+    display: inline-block;
+    width: inherit;
+    height: inherit;
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+    text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    .main-title {
+        -webkit-text-stroke: 2px white;
+    }
+
+    .your-hours-div a:visited {
+        color: white;
+    }
+
+    .your-hours-div a:link {
+        color: white;
+    }
+
+    .date-and-times-div a:visited {
+        color: white;
+    }
+
+    .date-and-times-div a:link {
+        color: white;
+    }
+
+    .nav-div::after {
+        display: block;
+        content: \"\";
+        position: relative;
+        top: 0.8em;
+        width: 100%;
+        height: 1px;
+        background-color: white;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    .main-title {
+        -webkit-text-stroke: 2px black;
+    }
+
+    .your-hours-div a:visited {
+        color: black;
+    }
+
+    .date-and-times-div a:visited {
+        color: black;
+    }
+
+    .date-and-times-div a:link {
+        color: black;
+    }
+
+    .your-hours-div a:link {
+        color: black;
+    }
+
+    .nav-div::after {
+        display: block;
+        content: \"\";
+        position: relative;
+        top: 0.8em;
+        width: 100%;
+        height: 1px;
+        background-color: black;
+    }
+}
+
+.date-and-times-div {
+    text-align: center;
+    width: 100%;
+    font-size: 2em;
+}
+
+.date-and-times-div a {
+    display: inline-block;
+    width: inherit;
+    height: inherit;
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+    text-decoration: none;
+}
+
+/* Main Related Styling */
+
+.hours-div-container {
+    align-items: center;
+    gap: 10em;
+}
+
+.hours-div-container h2 {
+    width: fit-content;
+    text-align: center;
+    font-size: 5em;
+}
+
 .hours-div {
+    align-items: center;
+    justify-content: space-evenly;
     width: 50%;
-    height: fit-content;
+    height: 30em;
     min-width: 90ch;
-    margin-left: 15%;
-    padding-left: 10em;
-    padding-right: 10em;
-    padding-top: 2em;
-    padding-bottom: 5em;
+    min-height: fit-content;
+    padding-left: 5em;
+    padding-right: 5em;
     border: 1px black solid;
     border-radius: 4em;
     background-color: grey;
-}
-
-.hours-div h2 {
-    font-size: 5em;
+    rotate: -10deg;
 }
 
 .hours-div p {
-    font-size: 2em;
+    font-size: 3em;
+}
+
+.dates-div-container {
+    align-items: center;
+}
+
+.dates-div-container h2 {
+    width: fit-content;
+    text-align: center;
+    font-size: 5em;
 }
 
 .dates-div {
+    align-items: center;
+    justify-content: space-evenly;
     width: 50%;
     height: fit-content;
     min-width: 90ch;
-    margin-left: 15%;
-    padding-left: 10em;
-    padding-right: 10em;
-    padding-top: 2em;
-    padding-bottom: 5em;
+    min-height: fit-content;
+    padding-top: 3em;
+    padding-bottom: 3em;
+    padding-left: 5em;
+    padding-right: 5em;
     border: 1px black solid;
     border-radius: 4em;
     background-color: grey;
 }
 
-.dates-div h2 {
-    font-size: 5em;
+.dates-div p {
+    font-size: 3em;
 }
 
-.dates-div p {
-    font-size: 2em;
+/* Footer Related Styling */
+
+.footer p:last-child {
+    opacity: 30%;
 }";
 
 fn main() {
@@ -239,7 +403,10 @@ fn main() {
         Ok(_) => println!("Website folder created in RLHoursFolder!"),
         Err(e) => {
             if e.kind() != ErrorKind::AlreadyExists {
-                panic!("Website folder was not created due to an error!\nError Kind: {}\n", e.kind());
+                panic!(
+                    "Website folder was not created due to an error!\nError Kind: {}\n",
+                    e.kind()
+                );
             }
         }
     }
@@ -277,7 +444,7 @@ fn generate_website_html(boolean: bool) {
                 println!("SUCCESS");
             }
         }
-        Err(e) => panic!("There was an issue with main styles: {:?}", e)
+        Err(e) => panic!("There was an issue with main styles: {:?}", e),
     }
 
     match home_styles {
@@ -286,7 +453,7 @@ fn generate_website_html(boolean: bool) {
                 println!("SUCCESS");
             }
         }
-        Err(e) => panic!("There was an issue with main styles: {:?}", e)
+        Err(e) => panic!("There was an issue with main styles: {:?}", e),
     }
 
     match index {
@@ -309,11 +476,15 @@ fn generate_website_html(boolean: bool) {
             let mut hrs_lines: Vec<&str> = hrs_content.split("\n").collect();
             let mut date_lines: Vec<&str> = date_content.split("\n").collect();
 
+            hrs_lines.pop();
             date_lines.pop();
 
             let main_heading_vec: Vec<&str> = hrs_lines.remove(0).split_whitespace().collect();
 
-            let main_heading = format!("{} {}<br>{} Tracker", main_heading_vec[0], main_heading_vec[1], main_heading_vec[2]);
+            let main_heading = format!(
+                "{} {}<br>{} Tracker",
+                main_heading_vec[0], main_heading_vec[1], main_heading_vec[2]
+            );
 
             page.add_container(
                 Container::new(ContainerType::Header)
@@ -325,25 +496,32 @@ fn generate_website_html(boolean: bool) {
                     )),
             );
 
+            let nav_container = HtmlElement::new(HtmlTag::Div)
+                .with_attribute("class", "nav-container flex-column")
+                .with_container(
+                    Container::new(ContainerType::Div)
+                        .with_attributes(vec![("class", "your-hours-div nav-div")])
+                        .with_link("#hours", "Your Hours"),
+                )
+                .with_container(
+                    Container::new(ContainerType::Div)
+                        .with_attributes(vec![("class", "date-and-times-div nav-div")])
+                        .with_link("#dates", "Date And Times"),
+                );
+
             page.add_container(
                 Container::new(ContainerType::Nav)
-                    .with_attributes(vec![("class", "nav")])
-                    .with_container(Container::new(ContainerType::Div).with_paragraph("Nav")),
+                    .with_attributes(vec![("class", "nav oswald-font-500")])
+                    .with_html(nav_container.to_html_string()),
             );
 
             let mut hours_div = HtmlElement::new(HtmlTag::Div)
-                .with_attribute(
-                    "class",
-                    "hours-div flex-column fles-align-justify-center adaptive",
-                )
-                .with_header(2, "Hours File");
+                .with_attribute("class", "hours-div flex-column adaptive");
 
-            let mut dates_div = HtmlElement::new(HtmlTag::Div)
-                .with_attribute(
-                    "class",
-                    "dates-div flex-column flex-align-justify-center adaptive",
-                )
-                .with_header(2, "Dates File");
+            let mut dates_div = HtmlElement::new(HtmlTag::Div).with_attribute(
+                "class",
+                "dates-div flex-column flex-align-justify-center adaptive",
+            );
 
             for line in hrs_lines {
                 hours_div.add_paragraph(line);
@@ -353,17 +531,30 @@ fn generate_website_html(boolean: bool) {
                 dates_div.add_paragraph(line);
             }
 
+            let hours_div_container = HtmlElement::new(HtmlTag::Div)
+                .with_attribute("id", "hours")
+                .with_attribute("class", "hours-div-container flex-column")
+                .with_header(2, "Your Hours Played")
+                .with_html(hours_div);
+
+            let dates_div_container = HtmlElement::new(HtmlTag::Div)
+                .with_attribute("id", "dates")
+                .with_attribute("class", "dates-div-container flex-column")
+                .with_header(2, "Your time played<br>on these days")
+                .with_html(dates_div);
+
             page.add_container(
                 Container::new(ContainerType::Main)
                     .with_attributes(vec![("class", "main flex-column oswald-font-500")])
-                    .with_html(hours_div)
-                    .with_html(dates_div)
+                    .with_html(hours_div_container)
+                    .with_html(dates_div_container),
             );
 
             page.add_container(
                 Container::new(ContainerType::Footer)
-                    .with_attributes(vec![("class", "footer oswald-font-700")])
-                    .with_paragraph("OneilNvM 2024 &copy;"),
+                    .with_attributes(vec![("class", "footer flex-row oswald-font-700")])
+                    .with_paragraph("OneilNvM 2024 &copy;")
+                    .with_paragraph("Alpha version 0.3.0-alpha.3"),
             );
 
             let contents = page
@@ -387,7 +578,7 @@ fn generate_website_html(boolean: bool) {
                 }
             }
         }
-        Err(e) =>  panic!("There was an issue with html: {:?}", e)
+        Err(e) => panic!("There was an issue with html: {:?}", e),
     }
 }
 
