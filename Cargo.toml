@@ -2,6 +2,7 @@
 name = "rl-hours-tracker"
 license = "MIT"
 version = "0.3.0-alpha.3"
+documentation = "https://docs.rs/crate/rl-hours-tracker"
 repository = "https://github.com/OneilNvM/rl-hours-tracker"
 edition = "2021"
 description = "A rust binary used for calculating the hours played of Rocket League in the past two weeks."

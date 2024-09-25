@@ -1,14 +1,17 @@
+//! This module contains the functionality to generate the Html, CSS, and JavaScript for the
+//! Rocket League Hours Tracker website.
 use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlPage};
 use build_html::{HtmlElement, HtmlTag};
+use image::{load_from_memory_with_format, ImageFormat};
 use std::io;
+use std::io::{Error, ErrorKind};
 use std::{
-    fs::{File, write},
+    fs::{write, File},
     io::{Read, Write},
 };
 use webbrowser;
-use image::{load_from_memory_with_format, ImageFormat};
 
-
+/// This constant is an array of bytes for the rl-icon-white.png image
 const RL_ICON_WHITE_BYTES: [u8; 2809] = [
     137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 64, 0, 0, 0, 64, 8, 6,
     0, 0, 0, 170, 105, 113, 222, 0, 0, 0, 9, 112, 72, 89, 115, 0, 0, 11, 19, 0, 0, 11, 19, 1, 0,
@@ -148,6 +151,7 @@ const RL_ICON_WHITE_BYTES: [u8; 2809] = [
     73, 69, 78, 68, 174, 66, 96, 130,
 ];
 
+/// This constant is an array of bytes for the rl-icon-grey.png image
 const RL_ICON_GREY_BYTES: [u8; 2660] = [
     137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 64, 0, 0, 0, 64, 8, 6,
     0, 0, 0, 170, 105, 113, 222, 0, 0, 0, 9, 112, 72, 89, 115, 0, 0, 11, 19, 0, 0, 11, 19, 1, 0,
@@ -280,6 +284,7 @@ const RL_ICON_GREY_BYTES: [u8; 2660] = [
     78, 68, 174, 66, 96, 130,
 ];
 
+/// This constant is a string slice of the styles for main.css
 const MAIN_STYLES_STRING: &str = "* {
     box-sizing: border-box;
     margin: 0;
@@ -292,13 +297,6 @@ const MAIN_STYLES_STRING: &str = "* {
         color: black;
     }
 
-    .hours-div.adaptive {
-        background-color: #fff5e2;
-    }
-
-    .dates-div.adaptive {
-        background-color: #fff5e2;
-    }
     .animation-div.adaptive {
         background-image: url(rl-icon-white.png);
     }
@@ -310,13 +308,6 @@ const MAIN_STYLES_STRING: &str = "* {
         color: white;
     }
 
-    .hours-div.adaptive {
-        background-color: #343434;
-    }
-
-    .dates-div.adaptive {
-        background-color: #343434;
-    }
     .animation-div.adaptive {
         background-image: url(rl-icon-grey.png);
     }
@@ -335,7 +326,7 @@ const MAIN_STYLES_STRING: &str = "* {
 .body {
     display: grid;
     grid-template-columns: 4fr 1fr;
-    grid-template-rows: 1.5fr 2fr 0.5fr;
+    grid-template-rows: 1.25fr 2fr 0.5fr;
     grid-template-areas:
         \"hdr hdr\"
         \"main nav\"
@@ -345,6 +336,7 @@ const MAIN_STYLES_STRING: &str = "* {
     animation-name: fade-in;
     animation-duration: 1s;
     animation-timing-function: ease-in;
+    overflow-x: hidden;
 }
 
 @keyframes move-image {
@@ -433,6 +425,7 @@ const MAIN_STYLES_STRING: &str = "* {
     font-style: normal;
 }";
 
+/// This constant is a string slice of the styles for home.css
 const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
 
 .header {
@@ -451,6 +444,7 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
 
 .main {
     gap: 20em;
+    height: 100%;
     justify-content: center;
     grid-area: main;
 }
@@ -537,6 +531,14 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
         height: 1px;
         background-color: white;
     }
+
+    .footer a:link {
+        color: white;
+    }
+
+    .footer a:visited {
+        color: white;
+    }
 }
 
 @media (prefers-color-scheme: light) {
@@ -569,6 +571,14 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
         height: 1px;
         background-color: black;
     }
+
+    .footer a:link {
+        color: black;
+    }
+
+    .footer a:visited {
+        color: black;
+    }
 }
 
 .date-and-times-div {
@@ -588,6 +598,55 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
 
 /* Main Related Styling */
 
+/* Main Background */
+
+.main::before {
+    display: block;
+    position: absolute;
+    content: \"\";
+    width: 110%;
+    height: 225%;
+    filter: blur(3em);
+    z-index: -2;
+    background: linear-gradient(to bottom, rgba(0, 119, 119, 0.062), rgba(102, 60, 255, 0.137));
+}
+
+.hours-div-container.color::before, .hours-div-container.color::after, .dates-div-container.color::before , .dates-div-container.color::after {
+    display: inline-block;
+    content: \"\";
+    position: absolute;
+    width: 40em;
+    height: 40em;
+    min-width: 40em;
+    min-height: 40em;
+    border-radius: 100%;
+
+    filter: blur(10em);
+    z-index: -1;
+}
+
+.hours-div-container.color::before {
+    transform: translateX(15em) translateY(20em);
+    background: linear-gradient(to top right, rgba(255, 145, 0, 0.219) 50%, rgba(251, 255, 192, 0.233) 50%);
+}
+
+.hours-div-container.color::after {
+    transform: translateX(-20em) translateY(-5em);
+    background: linear-gradient(to bottom right, rgba(0, 0, 255, 0.2) 50%, rgba(255, 0, 0, 0.2) 50%);
+}
+
+.dates-div-container.color::before {
+    transform: translateX(-15em) translateY(-30em);
+    background: linear-gradient(to top right, rgba(255, 117, 181, 0.219) 50%, rgba(0, 255, 255, 0.233) 50%);
+}
+
+.dates-div-container.color::after {
+    transform: translateX(10em) translateY(5em);
+    background: linear-gradient(to right, rgba(0, 238, 255, 0.219) 50%, rgba(61, 255, 55, 0.233) 50%);
+}
+
+/* Main Content */
+
 .hours-div-container {
     align-items: center;
     gap: 10em;
@@ -606,7 +665,7 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
 }
 
 .hours-div {
-    align-items: center;
+
     justify-content: space-evenly;
     width: 50%;
     height: 30em;
@@ -614,10 +673,6 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
     min-height: fit-content;
     padding-left: 5em;
     padding-right: 5em;
-    border: 1px black solid;
-    border-radius: 4em;
-    background-color: grey;
-    rotate: -10deg;
 }
 
 .hours-div p {
@@ -641,7 +696,6 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
 }
 
 .dates-div {
-    align-items: center;
     justify-content: space-evenly;
     width: 50%;
     height: fit-content;
@@ -651,9 +705,6 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
     padding-bottom: 3em;
     padding-left: 5em;
     padding-right: 5em;
-    border: 1px black solid;
-    border-radius: 4em;
-    background-color: grey;
 }
 
 .dates-div p {
@@ -662,10 +713,16 @@ const HOME_STYLES_STRING: &str = "/* Semantic Html Styling */
 
 /* Footer Related Styling */
 
-.footer p:last-child {
-    opacity: 30%;
+.footer a {
+    text-decoration: none;
+    transition-duration: 0.7s;
+}
+
+.footer a:hover {
+    color: red;
 }";
 
+/// This constant is a string slice of the JavaScript code for animations.js
 const ANIMATIONS_JS_STRING: &str = "function loader() {
     document.addEventListener(\"scroll\", scrollToDivs);
 }
@@ -673,8 +730,6 @@ const ANIMATIONS_JS_STRING: &str = "function loader() {
 function scrollToDivs() {
     let hoursDiv = document.getElementById('hours');
     let datesDiv = document.getElementById('dates');
-
-    console.log(\"hours:\", hoursDiv.offsetTop, \"dates:\", datesDiv.offsetTop)
 
     let pageBottom = window.innerHeight + document.documentElement.scrollTop;
 
@@ -694,7 +749,11 @@ function scrollToDivs() {
 
 document.addEventListener(\"DOMContentLoaded\", loader);";
 
+/// This function is used to generate the necessary files for the Rocket League Hours Tracker website.
+/// It accepts a bool [`bool`] as an argument which determines whether the option to open the website
+/// in the browser should appear or not.
 pub fn generate_website_files(boolean: bool) {
+    // Create and open files
     let index = File::create("C:\\RLHoursFolder\\website\\index.html");
     let main_styles = File::create("C:\\RLHoursFolder\\website\\main.css");
     let home_styles = File::create("C:\\RLHoursFolder\\website\\home.css");
@@ -702,75 +761,110 @@ pub fn generate_website_files(boolean: bool) {
     let mut hours_file = File::open("C:\\RLHoursFolder\\hours.txt");
     let mut date_file = File::open("C:\\RLHoursFolder\\date.txt");
 
+    // Instantiate variables for image icon bytes
     let white_rl_icon = RL_ICON_WHITE_BYTES;
     let grey_rl_icon = RL_ICON_GREY_BYTES;
 
+    // Creates the images as PNGs
     load_from_memory_with_format(&white_rl_icon, ImageFormat::Png).unwrap();
     load_from_memory_with_format(&grey_rl_icon, ImageFormat::Png).unwrap();
 
+    // Writes the images to the website directory
     write("C:\\RLHoursFolder\\website\\rl-icon-grey.png", grey_rl_icon).unwrap();
-    write("C:\\RLHoursFolder\\website\\rl-icon-white.png", white_rl_icon).unwrap();
+    write(
+        "C:\\RLHoursFolder\\website\\rl-icon-white.png",
+        white_rl_icon,
+    )
+    .unwrap();
 
+    // Creates the main.css file 
     match main_styles {
         Ok(mut ms_file) => {
-            if let Ok(_) = ms_file.write_all(MAIN_STYLES_STRING.as_bytes()) {
-                println!("SUCCESS");
+            // Writes the CSS content to the file
+            match ms_file.write_all(MAIN_STYLES_STRING.as_bytes()) {
+                Ok(_) => (),
+                Err(e) => panic!("There was an issue when writing to main.css: {e}")
             }
         }
         Err(e) => panic!("There was an issue with main styles: {:?}", e),
     }
 
+    // Creates the home.css file
     match home_styles {
         Ok(mut hs_file) => {
-            if let Ok(_) = hs_file.write_all(HOME_STYLES_STRING.as_bytes()) {
-                println!("SUCCESS");
+            // Writes the CSS content to the file
+            match hs_file.write_all(HOME_STYLES_STRING.as_bytes()) {
+                Ok(_) => (),
+                Err(e) => panic!("There was an issue when writing to home.css: {e}")
             }
         }
-        Err(e) => panic!("There was an issue with main styles: {:?}", e),
+        Err(e) => panic!("There was an issue when creating main.css: {e}"),
     }
 
+    // Creates the animations.js file
     match animations_js {
         Ok(mut a_js_file) => {
-            if let Ok(_) = a_js_file.write_all(ANIMATIONS_JS_STRING.as_bytes()) {
-                println!("SUCCESS");
+            // Writes the JavaScript content to the file
+            match a_js_file.write_all(ANIMATIONS_JS_STRING.as_bytes()) {
+                Ok(_) => (),
+                Err(e) => panic!("There was an issue when writing to the animations JavaScript file: {e}")
             }
         }
-        Err(e) => panic!(
-            "There was an issue with the animations javascript file: {:?}",
-            e
-        ),
+        Err(e) => panic!("There was an issue when creating the animations JavaScript file: {e}"),
     }
 
+    // Creates the index.html file
     match index {
         Ok(mut idx_file) => {
-            let contents = generate_page(&mut hours_file, &mut date_file)
-                .replace("<body>", "<body class=\"body adaptive\">");
+            // Declare uninitialized 'contents' string variable to store the Html for the website
+            let contents: String;
 
-            if let Ok(_) = idx_file.write_all(&contents.as_bytes()) {
-                println!("Contents length: {}", contents.len());
-
-                if boolean == false {
-                    let mut option = String::new();
-
-                    println!("Open hours website in browser (y/n)?");
-                    io::stdin().read_line(&mut option).unwrap();
-
-                    if option.trim() == "y" || option.trim() == "Y" {
-                        if webbrowser::open("C:\\RLHoursFolder\\website\\index.html").is_ok() {
-                            println!("200 OK");
-                        };
-                    }
+            // Generate the website and handle any errors
+            match generate_page(&mut hours_file, &mut date_file) {
+                Ok(page) => {
+                    // Initialize the 'contents' variable with the Html
+                    contents = page.replace("<body>", "<body class=\"body adaptive\">");
+                }
+                Err(e) => {
+                    println!("Error in 'generate_page', website not generated. Error Kind: {}\nError message: {e}", e.kind());
+                    return;
                 }
             }
+
+            // Writes the index.html file
+            match idx_file.write_all(&contents.as_bytes()) {
+                Ok(_) => {
+                    // If statement determines whether to prompt the user with the option to open the website
+                    if boolean == true {
+                        let mut option = String::new();
+
+                        println!("Open hours website in browser (y/n)?");
+                        io::stdin().read_line(&mut option).unwrap();
+
+                        if option.trim() == "y" || option.trim() == "Y" {
+                            if webbrowser::open("C:\\RLHoursFolder\\website\\index.html").is_ok() {
+                                println!("200 OK");
+                            };
+                        }
+                    }
+                }
+                Err(e) => panic!("There was an issue when writing index.html: {e}"),
+            }
         }
-        Err(e) => panic!("There was an issue with html: {:?}", e),
+        Err(e) => panic!("There was an issue when creating index.html: {e}"),
     }
 }
 
+/// This function generates the necessary Html for the website via the [`build_html`] library. The `hours_file` and `date_file`
+/// parameters are both mutable [`Result<File>`] references which provides us with a [`File`] if it is successful, or [`io::Error`] if
+/// it fails. This function then returns a [`Result<String>`] of the Html.
+/// 
+/// # Errors
+/// This function returns an [`io::Error`] if there were any errors during file operations.
 fn generate_page(
     hours_file: &mut Result<File, io::Error>,
     date_file: &mut Result<File, io::Error>,
-) -> String {
+) -> Result<String, io::Error> {
     let mut page = HtmlPage::new()
     .with_title("Rocket League Hours Tracker")
     .with_meta(vec![("charset", "UTF-8")])
@@ -783,19 +877,39 @@ fn generate_page(
     .with_head_link("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@200..700&display=swap", "stylesheet")
     .with_script_link("animations.js");
 
+    page.add_container(
+        Container::new(ContainerType::Div)
+            .with_attributes(vec![("class", "animation-div adaptive")])
+            .with_raw(""),
+    );
+
     let mut hrs_content = String::new();
     let mut date_content = String::new();
 
     if let Ok(ref mut hrs_file) = hours_file {
         if let Ok(_) = hrs_file.read_to_string(&mut hrs_content) {
-            println!("SUCCESS: {}", hrs_content.len());
+            ();
+        } else {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "The files contents are not valid UTF-8.",
+            ));
         }
+    } else {
+        return Err(Error::new(ErrorKind::NotFound, "The file 'hours.txt' could not be opened. Either it does not exist or it is not in the 'RLHoursFolder' directory."));
     }
 
     if let Ok(ref mut dt_file) = date_file {
         if let Ok(_) = dt_file.read_to_string(&mut date_content) {
-            println!("SUCCESS: {}", date_content.len());
+            ();
+        } else {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "The files contents are not valid UTF-8.",
+            ));
         }
+    } else {
+        return Err(Error::new(ErrorKind::NotFound, "The file 'hours.txt' could not be opened. Either it does not exist or it is not in the 'RLHoursFolder' directory."));
     }
 
     let mut hrs_lines: Vec<&str> = hrs_content.split("\n").collect();
@@ -852,25 +966,37 @@ fn generate_page(
         hours_div.add_paragraph(line);
     }
 
-    for line in date_lines {
-        dates_div.add_paragraph(line);
+    date_lines.reverse();
+
+    let mut counter: usize = 0;
+
+    if date_lines.len() >= 7 {
+        while counter <= 6 {
+            dates_div.add_paragraph(date_lines[counter]);
+
+            counter += 1;
+        }
+    } else {
+        for line in date_lines {
+            dates_div.add_paragraph(line);
+        }
     }
 
     let hours_div_container = HtmlElement::new(HtmlTag::Div)
         .with_attribute("id", "hours")
-        .with_attribute("class", "hours-div-container flex-column")
+        .with_attribute("class", "hours-div-container color flex-column")
         .with_header(2, "Your Hours Played")
         .with_html(hours_div);
 
     let dates_div_container = HtmlElement::new(HtmlTag::Div)
         .with_attribute("id", "dates")
-        .with_attribute("class", "dates-div-container flex-column")
-        .with_header(2, "Your time played<br>on these days")
+        .with_attribute("class", "dates-div-container color flex-column")
+        .with_header(2, "Your time played<br>in the last 7 sessions")
         .with_html(dates_div);
 
     page.add_container(
         Container::new(ContainerType::Main)
-            .with_attributes(vec![("class", "main flex-column oswald-font-500")])
+            .with_attributes(vec![("class", "main flex-column color oswald-font-500")])
             .with_html(hours_div_container)
             .with_html(dates_div_container),
     );
@@ -879,13 +1005,12 @@ fn generate_page(
         Container::new(ContainerType::Footer)
             .with_attributes(vec![("class", "footer flex-row oswald-font-700")])
             .with_paragraph("OneilNvM 2024 &copy;")
-            .with_paragraph("Alpha version 0.3.0-alpha.3"),
+            .with_link_attr(
+                "https://github.com/OneilNvM/rl-hours-tracker",
+                "Rocket League Hours Tracker Github",
+                [("target", "_blank")],
+            ),
     );
 
-    let animation_div =
-        HtmlElement::new(HtmlTag::Div).with_attribute("class", "animation-div adaptive");
-
-    page.add_html(animation_div);
-
-    page.to_html_string()
+    Ok(page.to_html_string())
 }
