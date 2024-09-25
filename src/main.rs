@@ -35,12 +35,16 @@ fn main() {
     // Mutable string for user option
     let mut option = String::new();
 
-    // Create the folder directory RLHoursFolder on the C: drive
+    // Create the folder directories for the program
     let folder = fs::create_dir("C:\\RLHoursFolder");
     let website_folder = fs::create_dir("C:\\RLHoursFolder\\website");
+    let website_pages = fs::create_dir("C:\\RLHoursFolder\\website\\pages");
+    let website_css = fs::create_dir("C:\\RLHoursFolder\\website\\css");
+    let website_js = fs::create_dir("C:\\RLHoursFolder\\website\\js");
+    let website_images = fs::create_dir("C:\\RLHoursFolder\\website\\images");
 
     // Store the folder results in Vector
-    let folder_vec: Vec<Result<(), io::Error>> = vec![folder, website_folder];
+    let folder_vec: Vec<Result<(), io::Error>> = vec![folder, website_folder, website_pages, website_css, website_js, website_images];
 
     // Create the directories for the program
     let folders_result = create_directory(folder_vec);

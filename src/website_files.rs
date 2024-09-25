@@ -298,7 +298,7 @@ const MAIN_STYLES_STRING: &str = "* {
     }
 
     .animation-div.adaptive {
-        background-image: url(rl-icon-white.png);
+        background-image: url(../images/rl-icon-white.png);
     }
 }
 
@@ -309,7 +309,7 @@ const MAIN_STYLES_STRING: &str = "* {
     }
 
     .animation-div.adaptive {
-        background-image: url(rl-icon-grey.png);
+        background-image: url(../images/rl-icon-grey.png);
     }
 }
 
@@ -754,10 +754,10 @@ document.addEventListener(\"DOMContentLoaded\", loader);";
 /// in the browser should appear or not.
 pub fn generate_website_files(boolean: bool) {
     // Create and open files
-    let index = File::create("C:\\RLHoursFolder\\website\\index.html");
-    let main_styles = File::create("C:\\RLHoursFolder\\website\\main.css");
-    let home_styles = File::create("C:\\RLHoursFolder\\website\\home.css");
-    let animations_js = File::create("C:\\RLHoursFolder\\website\\animations.js");
+    let index = File::create("C:\\RLHoursFolder\\website\\pages\\index.html");
+    let main_styles = File::create("C:\\RLHoursFolder\\website\\css\\main.css");
+    let home_styles = File::create("C:\\RLHoursFolder\\website\\css\\home.css");
+    let animations_js = File::create("C:\\RLHoursFolder\\website\\js\\animations.js");
     let mut hours_file = File::open("C:\\RLHoursFolder\\hours.txt");
     let mut date_file = File::open("C:\\RLHoursFolder\\date.txt");
 
@@ -770,9 +770,9 @@ pub fn generate_website_files(boolean: bool) {
     load_from_memory_with_format(&grey_rl_icon, ImageFormat::Png).unwrap();
 
     // Writes the images to the website directory
-    write("C:\\RLHoursFolder\\website\\rl-icon-grey.png", grey_rl_icon).unwrap();
+    write("C:\\RLHoursFolder\\website\\images\\rl-icon-grey.png", grey_rl_icon).unwrap();
     write(
-        "C:\\RLHoursFolder\\website\\rl-icon-white.png",
+        "C:\\RLHoursFolder\\website\\images\\rl-icon-white.png",
         white_rl_icon,
     )
     .unwrap();
@@ -842,7 +842,7 @@ pub fn generate_website_files(boolean: bool) {
                         io::stdin().read_line(&mut option).unwrap();
 
                         if option.trim() == "y" || option.trim() == "Y" {
-                            if webbrowser::open("C:\\RLHoursFolder\\website\\index.html").is_ok() {
+                            if webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html").is_ok() {
                                 println!("200 OK");
                             };
                         }
@@ -869,13 +869,13 @@ fn generate_page(
     .with_title("Rocket League Hours Tracker")
     .with_meta(vec![("charset", "UTF-8")])
     .with_meta(vec![("name", "viewport"), ("content", "width=device-width, initial-scale=1.0")])
-    .with_head_link("main.css", "stylesheet")
-    .with_head_link("home.css", "stylesheet")
+    .with_head_link("../css/main.css", "stylesheet")
+    .with_head_link("../css/home.css", "stylesheet")
     .with_head_link("https://fonts.googleapis.com", "preconnect")
     .with_head_link_attr("https://fonts.gstatic.com", "preconnect", [("crossorigin", "")])
     .with_head_link("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap", "stylesheet")
     .with_head_link("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@200..700&display=swap", "stylesheet")
-    .with_script_link("animations.js");
+    .with_script_link("../js/animations.js");
 
     page.add_container(
         Container::new(ContainerType::Div)

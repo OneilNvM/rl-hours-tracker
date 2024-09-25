@@ -1070,7 +1070,7 @@ dependencies = [
 
 [[package]]
 name = "rl-hours-tracker"
-version = "0.3.0-alpha.3"
+version = "0.3.0"
 dependencies = [
  "build_html",
  "chrono",
