@@ -25,6 +25,7 @@ use std::{
 };
 use stopwatch::Stopwatch;
 use sysinfo::System;
+use rl_hours_tracker::website_files;
 
 fn main() {
     // String reference of the Rocket League process name
@@ -34,20 +35,26 @@ fn main() {
     // Mutable string for user option
     let mut option = String::new();
 
-    // Create the folder directory RLHoursFolder on the C: drive
+    // Create the folder directories for the program
     let folder = fs::create_dir("C:\\RLHoursFolder");
+    let website_folder = fs::create_dir("C:\\RLHoursFolder\\website");
+    let website_pages = fs::create_dir("C:\\RLHoursFolder\\website\\pages");
+    let website_css = fs::create_dir("C:\\RLHoursFolder\\website\\css");
+    let website_js = fs::create_dir("C:\\RLHoursFolder\\website\\js");
+    let website_images = fs::create_dir("C:\\RLHoursFolder\\website\\images");
 
-    // Match block to handle Ok and Err variants
-    match folder {
-        Ok(_) => println!("Rocket League Hours Folder created on C: Drive!"), // Successful folder creation
-        Err(e) => {
-            if e.kind() != ErrorKind::AlreadyExists {
-                panic!(
-                    "Folder was not created due to an error!\nError Kind: {}\n",
-                    e.kind()
-                );
-            } // Failed folder creation
+    // Store the folder results in Vector
+    let folder_vec: Vec<Result<(), io::Error>> = vec![folder, website_folder, website_pages, website_css, website_js, website_images];
+
+    // Create the directories for the program
+    let folders_result = create_directory(folder_vec);
+
+    // Handles the successful result from the 'create_directory' function or panics if any errors occurred
+    match folders_result {
+        Ok(_) => {
+            println!("All directories successfully created!");
         }
+        Err(e) => panic!("There was an error when creating the programs directories.\n Error Kind: {}\n{e}", e.kind())
     }
 
     // Updates the hours in the past two weeks if it returns true
@@ -59,6 +66,30 @@ fn main() {
     run_main_loop(process_name, &mut is_waiting, &mut option);
 }
 
+/// This function creates the directories for the program. Accepts [`Vec<Result>`] as an argument which is a Vector 
+/// of folder creation operations. Returns a [`Result<usize>`] when operations are successful.
+/// 
+/// # Errors
+/// This function returns an [`io::Error`] in the case that there were any unexpected errors during folder creations, with the
+/// exceptance of [`ErrorKind::AlreadyExists`].
+fn create_directory(folders: Vec<Result<(), io::Error>>) -> Result<usize, io::Error> {
+    // Loop through all the folder creations and create the folders
+    for folder in folders {
+        match folder {
+            Ok(_) => {
+                ();
+            }
+            Err(e) => {
+                if e.kind() != ErrorKind::AlreadyExists {
+                    return Err(e)
+                }
+            }
+        }
+    }
+
+    Ok(0)
+}
+
 /// This function runs the main loop of the program. This checks if the `RocketLeague.exe` process is running and
 /// runs the [`record_hours`] function if it is running, otherwise it will continue to wait for the process to start.
 fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String) {
@@ -68,6 +99,9 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
         if check_for_process(process_name) {
             // Begins the loop which records the seconds past after the process began
             record_hours(process_name);
+
+            // Generate the website files
+            website_files::generate_website_files(true);
 
             // Change is_waiting value back to false
             *is_waiting = false;
@@ -176,7 +210,7 @@ fn update_past_two() -> bool {
     } else {
         // Prints this line and returns false
         println!("Past two was not calculated.");
-        return false
+        return false;
     }
 
     // Checks if the 'hours.txt' file exists, then stores the File in the mutable 'file' variable
@@ -201,8 +235,11 @@ fn update_past_two() -> bool {
 
                         // Checks if writing to the file was successful
                         match w_file.write_all(&rl_hours_str.as_bytes()) {
-                            // Return true to val
-                            Ok(_) => true,
+                            // Update the website files and returns true to val
+                            Ok(_) => {
+                                website_files::generate_website_files(false);
+                                true
+                            },
                             // Panic if there was an error when writing to the file
                             Err(e) => panic!("Error occurred in 'update_past_two' function: There was an issue writing to 'hours.txt'.\nError Kind: {}", e.kind())
                         }
@@ -329,7 +366,7 @@ fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
             result = mid;
             is_zero = false;
             break;
-        } else if s_mid[0] < c_date {
+        } else if *s_mid[0] < **c_date {
             low = mid + 1;
         } else {
             if mid == 0 {
@@ -508,7 +545,7 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
 
     // Return the new string of the file contents to be written to the file
     format!(
-        "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}hrs\n",
+        "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}hrs\nHours Past Two Weeks: {:.1}hrs\n",
         added_seconds, added_hours, past_two
     )
 }
@@ -539,8 +576,7 @@ fn write_to_hours(
                 // Checks if writing to the file was successful
                 match t_file.write_all(&rl_hours_str.as_bytes()) {
                     Ok(_) => {
-                        // Prints the String contents and the elapsed time
-                        println!("{}", rl_hours_str);
+                        // Prints the elapsed time
                         println!("Elapsed Time: {}s", seconds);
                     }
                     // Panics if there was an error writing to the file
@@ -559,7 +595,7 @@ fn write_to_hours(
                 let total_seconds = sw.elapsed_ms() / 1000;
                 let total_hours: f32 = (sw.elapsed_ms() as f32 / 1000_f32) / 3600_f32;
                 let rl_hours_str = format!(
-                                "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}\n", total_seconds, total_hours, hours_past_two
+                                "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}hrs\nHours Past Two Weeks: {:.1}hrs\n", total_seconds, total_hours, hours_past_two
                             );
 
                 // Checks if writing to the file was successful

@@ -1,7 +1,8 @@
 [package]
 name = "rl-hours-tracker"
 license = "MIT"
-version = "0.2.6"
+version = "0.3.0"
+documentation = "https://docs.rs/crate/rl-hours-tracker"
 repository = "https://github.com/OneilNvM/rl-hours-tracker"
 edition = "2021"
 description = "A rust binary used for calculating the hours played of Rocket League in the past two weeks."
@@ -9,6 +10,9 @@ description = "A rust binary used for calculating the hours played of Rocket Lea
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+build_html = "2.5.0"
 chrono = "0.4.38"
+image = "0.25.2"
 stopwatch = "0.0.7"
 sysinfo = "0.31.2"
+webbrowser = "1.0.1"
