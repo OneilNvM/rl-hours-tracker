@@ -2,16 +2,18 @@
 //! Rocket League Hours Tracker website.
 use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlPage};
 use build_html::{HtmlElement, HtmlTag};
+use bytes::Bytes;
+use reqwest::{Client, Response};
 use std::io;
 use std::io::{Error, ErrorKind};
 use std::{
     fs::{write, File},
     io::{Read, Write},
 };
-use webbrowser;
 use tokio::runtime::Runtime;
-use reqwest::{Client, Response};
+use webbrowser;
 
+#[derive(Debug, Clone)]
 pub struct Github<'a> {
     owner: &'a str,
     repo: &'a str,
@@ -22,7 +24,7 @@ pub struct Github<'a> {
 }
 
 impl<'a> Github<'a> {
-    pub fn new() -> Github<'a> {
+    pub fn new() -> Self {
         Github {
             owner: "",
             repo: "",
@@ -33,7 +35,14 @@ impl<'a> Github<'a> {
         }
     }
 
-    pub fn set_params(&mut self, owner: &'a str, repo: &'a str, branch: &'a str, path: &'a str, file: &'a str) {
+    pub fn set_fields(
+        &mut self,
+        owner: &'a str,
+        repo: &'a str,
+        branch: &'a str,
+        path: &'a str,
+        file: &'a str,
+    ) {
         self.owner = owner;
         self.repo = repo;
         self.branch = branch;
@@ -42,23 +51,34 @@ impl<'a> Github<'a> {
     }
 
     pub fn build_url(&mut self) {
-        let url = format!("https://raw.githubusercontent.com/{}/{}/refs/heads/{}/{}/{}", self.owner, self.repo, self.branch, self.path, self.file);
+        let url = format!(
+            "https://raw.githubusercontent.com/{}/{}/refs/heads/{}/{}/{}",
+            self.owner, self.repo, self.branch, self.path, self.file
+        );
+        self.url = url;
+    }
+
+    pub fn build_image_url(&mut self) {
+        let url = format!(
+            "https://github.com/{}/{}/blob/{}/{}/{}",
+            self.owner, self.repo, self.branch, self.path, self.file
+        );
         self.url = url;
     }
 }
 
-async fn send_request(url: String) -> Response {
+pub async fn send_request(url: String) -> Response {
     let client = Client::new();
 
     let request = client.get(url).send().await;
 
     match request {
         Ok(response) => response,
-        Err(e) => panic!("There was an issue requesting a website file.\n{:?}", e.status()),
+        Err(e) => panic!("There was an issue requesting a website file.\n{e}"),
     }
 }
 
-async fn handle_response(urls: Vec<String>) -> Vec<String> {
+pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
     let mut text_vec: Vec<String> = Vec::new();
 
     for url in urls {
@@ -68,19 +88,37 @@ async fn handle_response(urls: Vec<String>) -> Vec<String> {
 
         match text {
             Ok(result) => text_vec.push(result),
-            Err(e) => panic!("There was an issue when retrieving full response text.\n{e}")
+            Err(e) => panic!("There was an issue when retrieving full response text.\n{e}"),
         }
     }
 
     text_vec
 }
 
-fn run_async_functions(urls: Vec<String>) -> Vec<String> {
+pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
+    let mut blob_vec: Vec<Bytes> = Vec::new();
+
+    for url in urls {
+        let response = send_request(url).await;
+
+        let blob = response.bytes().await;
+
+        match blob {
+            Ok(result) => blob_vec.push(result),
+            Err(e) => panic!("There was an issue when retrieving image bytes.\n{e}"),
+        }
+    }
+
+    blob_vec
+}
+
+pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> (Vec<String>, Vec<Bytes>) {
     let rt = Runtime::new().unwrap();
 
-    let result = rt.block_on(handle_response(urls));
+    let result1 = rt.block_on(handle_response(urls1));
+    let result2 = rt.block_on(handle_image_response(urls2));
 
-    result
+    (result1, result2)
 }
 
 /// This function is used to generate the necessary files for the Rocket League Hours Tracker website.
@@ -101,26 +139,76 @@ pub fn generate_website_files(boolean: bool) {
     let mut github_grey_icon = Github::new();
     let mut github_white_icon = Github::new();
 
-    github_main_css.set_params("OneilNvM", "rl-hours-tracker", "github-http", "website/css", "main.css");
-    github_home_css.set_params("OneilNvM", "rl-hours-tracker", "github-http", "website/css", "home.css");
-    github_animations_js.set_params("OneilNvM", "rl-hours-tracker", "github-http", "website/js", "animations.js");
-    github_grey_icon.set_params("OneilNvM", "rl-hours-tracker", "github-http", "website/images", "rl-icon-grey.png");
-    github_white_icon.set_params("OneilNvM", "rl-hours-tracker", "github-http", "website/images", "rl-icon-white.png");
+    github_main_css.set_fields(
+        "OneilNvM",
+        "rl-hours-tracker",
+        "github-http",
+        "website/css",
+        "main.css",
+    );
+    github_home_css.set_fields(
+        "OneilNvM",
+        "rl-hours-tracker",
+        "github-http",
+        "website/css",
+        "home.css",
+    );
+    github_animations_js.set_fields(
+        "OneilNvM",
+        "rl-hours-tracker",
+        "github-http",
+        "website/js",
+        "animations.js",
+    );
+    github_grey_icon.set_fields(
+        "OneilNvM",
+        "rl-hours-tracker",
+        "github-http",
+        "website/images",
+        "rl-icon-grey.png",
+    );
+    github_white_icon.set_fields(
+        "OneilNvM",
+        "rl-hours-tracker",
+        "github-http",
+        "website/images",
+        "rl-icon-white.png",
+    );
 
-    let github_vec = vec![github_main_css.url, github_home_css.url, github_animations_js.url];
+    github_main_css.build_url();
+    github_home_css.build_url();
+    github_animations_js.build_url();
+    github_grey_icon.build_url();
+    github_white_icon.build_url();
 
-    let responses = run_async_functions(github_vec);
+    let github_text_vec = vec![
+        github_main_css.url,
+        github_home_css.url,
+        github_animations_js.url,
+    ];
 
-    let _ = write("C:\\RLHoursFolder\\website\\images\\rl-icon-grey.png", responses[3].clone());
-    let _ = write("C:\\RLHoursFolder\\website\\images\\rl-icon-white.png", responses[4].clone());
+    let github_blob_vec = vec![github_grey_icon.url, github_white_icon.url];
 
-    // Creates the main.css file 
+    let (response_text, response_bytes) = run_async_functions(github_text_vec, github_blob_vec);
+
+    write(
+        "C:\\RLHoursFolder\\website\\images\\rl-icon-grey.png",
+        response_bytes[0].clone(),
+    )
+    .unwrap();
+    write(
+        "C:\\RLHoursFolder\\website\\images\\rl-icon-white.png",
+        response_bytes[1].clone(),
+    )
+    .unwrap();
+
+    // Creates the main.css file
     match main_styles {
         Ok(mut ms_file) => {
             // Writes the CSS content to the file
-            match ms_file.write_all(responses[0].as_bytes()) {
+            match ms_file.write_all(response_text[0].as_bytes()) {
                 Ok(_) => (),
-                Err(e) => panic!("There was an issue when writing to main.css: {e}")
+                Err(e) => panic!("There was an issue when writing to main.css: {e}"),
             }
         }
         Err(e) => panic!("There was an issue with main styles: {:?}", e),
@@ -130,9 +218,9 @@ pub fn generate_website_files(boolean: bool) {
     match home_styles {
         Ok(mut hs_file) => {
             // Writes the CSS content to the file
-            match hs_file.write_all(responses[1].as_bytes()) {
+            match hs_file.write_all(response_text[1].as_bytes()) {
                 Ok(_) => (),
-                Err(e) => panic!("There was an issue when writing to home.css: {e}")
+                Err(e) => panic!("There was an issue when writing to home.css: {e}"),
             }
         }
         Err(e) => panic!("There was an issue when creating main.css: {e}"),
@@ -142,9 +230,11 @@ pub fn generate_website_files(boolean: bool) {
     match animations_js {
         Ok(mut a_js_file) => {
             // Writes the JavaScript content to the file
-            match a_js_file.write_all(responses[2].as_bytes()) {
+            match a_js_file.write_all(response_text[2].as_bytes()) {
                 Ok(_) => (),
-                Err(e) => panic!("There was an issue when writing to the animations JavaScript file: {e}")
+                Err(e) => {
+                    panic!("There was an issue when writing to the animations JavaScript file: {e}")
+                }
             }
         }
         Err(e) => panic!("There was an issue when creating the animations JavaScript file: {e}"),
@@ -179,7 +269,9 @@ pub fn generate_website_files(boolean: bool) {
                         io::stdin().read_line(&mut option).unwrap();
 
                         if option.trim() == "y" || option.trim() == "Y" {
-                            if webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html").is_ok() {
+                            if webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html")
+                                .is_ok()
+                            {
                                 println!("200 OK");
                             };
                         }
@@ -195,7 +287,7 @@ pub fn generate_website_files(boolean: bool) {
 /// This function generates the necessary Html for the website via the [`build_html`] library. The `hours_file` and `date_file`
 /// parameters are both mutable [`Result<File>`] references which provides us with a [`File`] if it is successful, or [`io::Error`] if
 /// it fails. This function then returns a [`Result<String>`] of the Html.
-/// 
+///
 /// # Errors
 /// This function returns an [`io::Error`] if there were any errors during file operations.
 fn generate_page(

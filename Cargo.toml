@@ -11,6 +11,7 @@ description = "A rust binary used for calculating the hours played of Rocket Lea
 
 [dependencies]
 build_html = "2.5.0"
+bytes = "1.7.2"
 chrono = "0.4.38"
 image = "0.25.2"
 reqwest = "0.12.7"

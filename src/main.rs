@@ -35,6 +35,18 @@ fn main() {
     // Mutable string for user option
     let mut option = String::new();
 
+    println!("
+   ___           __       __    __                         
+  / _ \\___  ____/ /_____ / /_  / /  ___ ___ ____ ___ _____ 
+ / , _/ _ \\/ __/  '_/ -_) __/ / /__/ -_) _ `/ _ `/ // / -_)
+/_/|_|\\___/\\__/_/\\_\\\\__/\\__/ /____/\\__/\\_,_/\\_, /\\_,_/\\__/ 
+   __ __                    ______         /___/_          
+  / // /__  __ _________   /_  __/______ _____/ /_____ ____
+ / _  / _ \\/ // / __(_-<    / / / __/ _ `/ __/  '_/ -_) __/
+/_//_/\\___/\\_,_/_/ /___/   /_/ /_/  \\_,_/\\__/_/\\_\\\\__/_/   
+                                                           
+");
+
     // Create the folder directories for the program
     let folder = fs::create_dir("C:\\RLHoursFolder");
     let website_folder = fs::create_dir("C:\\RLHoursFolder\\website");
