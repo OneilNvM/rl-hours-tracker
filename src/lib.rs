@@ -24,3 +24,5 @@
 //! // in a browser.
 //! website_files::generate_website_files(false);
 pub mod website_files;
+#[cfg(test)]
+mod tests;

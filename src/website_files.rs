@@ -1,14 +1,11 @@
 //! This module contains the functionality to generate the Html, CSS, and JavaScript for the
 //! Rocket League Hours Tracker website.
-use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlPage};
-use build_html::{HtmlElement, HtmlTag};
+use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlElement, HtmlPage, HtmlTag};
 use bytes::Bytes;
 use reqwest::{Client, Response};
-use std::io;
-use std::io::{Error, ErrorKind};
 use std::{
     fs::{write, File},
-    io::{Read, Write},
+    io::{self, Error, ErrorKind, Read, Write},
 };
 use tokio::runtime::Runtime;
 use webbrowser;
@@ -38,14 +35,14 @@ impl<'a> Github<'a> {
     }
 
     /// This sets the fields of the Github instance.
-    /// 
+    ///
     /// The fields need to be set in order to create a valid `Url` when using [`Github::build_url`] or [`Github::build_image_url`]
-    /// 
+    ///
     /// ## Usage
-    /// 
+    ///
     /// ```
     /// let mut github_repo = Github::new();
-    /// 
+    ///
     /// github_repo.set_fields("OneilNvM", "rl-hours-tracker", "master", "src", "main.rs");
     /// ```
     pub fn set_fields(
@@ -64,20 +61,20 @@ impl<'a> Github<'a> {
     }
 
     /// Builds the `Url` for the raw contents of a file.
-    /// 
+    ///
     /// This function should only be used for files on Github which can be opened in raw format.
-    /// 
+    ///
     /// Fields need to be set first through [`Github::set_fields`].
-    /// 
+    ///
     /// ## Usage
-    /// 
+    ///
     /// ```
     ///let mut github_repo = Github::new();
-    /// 
+    ///
     /// github_repo.set_fields(owner, repo, branch, path, file);
-    /// 
+    ///
     /// // Example Output: "https://raw.githubusercontent.com/OneilNvM/rl-hours-tracker/refs/heads/master/src/main.rs"
-    /// github_repo.build_url(); 
+    /// github_repo.build_url();
     /// ```
     pub fn build_url(&mut self) {
         let url = format!(
@@ -88,20 +85,20 @@ impl<'a> Github<'a> {
     }
 
     /// Builds the `Url` for the blob of an image file.
-    /// 
+    ///
     /// This function should only be used for image files in a Github repository.
-    /// 
+    ///
     /// Fields need to be set first through [`Github::set_fields`].
-    /// 
+    ///
     /// ## Usage
-    /// 
+    ///
     /// ```
     ///let mut github_repo = Github::new();
-    /// 
+    ///
     /// github_repo.set_fields(owner, repo, branch, path, file);
-    /// 
+    ///
     /// // Example Output: "https://github.com/OneilNvM/rl-hours-tracker/blob/master/images/img.png"
-    /// github_repo.build_image_url(); 
+    /// github_repo.build_image_url();
     /// ```
     pub fn build_image_url(&mut self) {
         let url = format!(
@@ -113,12 +110,12 @@ impl<'a> Github<'a> {
 }
 
 /// Sends a HTTP `GET` request and returns the response.
-/// 
+///
 /// ## Usage
-/// 
+///
 /// ```
 /// let response = send_request(url).await;
-/// 
+///
 /// let text = response.text().await;
 /// ```
 pub async fn send_request(url: String) -> Response {
@@ -136,7 +133,7 @@ pub async fn send_request(url: String) -> Response {
 }
 
 /// Handles the response received from [`send_request`].
-/// 
+///
 /// This function specifically handles the Urls from the [`Github`] instance, which was created
 /// through [`Github::build_url`].
 pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
@@ -163,7 +160,7 @@ pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
 }
 
 /// Handles the response received from [`send_request`].
-/// 
+///
 /// This function specifically handles the urls from the [`Github`] instance, which was created
 /// through [`Github::build_image_url`].
 pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
@@ -190,7 +187,7 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
 }
 
 /// Runs the asynchronous functions to completion and returns a tuple of [`Vec<String>`] and [`Vec<Bytes>`]
-/// 
+///
 /// This creates a new [`Runtime`] instance and runs the async functions to completion with [`Runtime::block_on`].
 pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> (Vec<String>, Vec<Bytes>) {
     // Create a new Tokio Runtime instance
@@ -352,7 +349,7 @@ pub fn generate_website_files(boolean: bool) {
             match idx_file.write_all(&contents.as_bytes()) {
                 Ok(_) => {
                     // If statement determines whether to prompt the user with the option to open the website
-                    if boolean == false {
+                    if boolean == true {
                         let mut option = String::new();
 
                         println!("Open hours website in browser (y/n)?");
@@ -523,7 +520,7 @@ fn generate_page(
     page.add_container(
         Container::new(ContainerType::Footer)
             .with_attributes(vec![("class", "footer flex-row oswald-font-700")])
-            .with_paragraph("OneilNvM 2024 &copy;")
+            .with_paragraph("&copy; OneilNvM 2024 ")
             .with_link_attr(
                 "https://github.com/OneilNvM/rl-hours-tracker",
                 "Rocket League Hours Tracker Github",
