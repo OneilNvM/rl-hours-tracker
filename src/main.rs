@@ -11,21 +11,17 @@
 //! ``` rust
 //!     println!("You got it Oneil :)");
 //! ```
-use chrono::prelude::*;
-use chrono::Duration as CDuration;
-use std::io::ErrorKind;
-use std::thread;
-use std::u64;
-use std::usize;
-use std::{fs, io};
+use chrono::{prelude::*, Duration as CDuration};
+use rl_hours_tracker::website_files;
 use std::{
-    fs::File,
-    io::{Read, Write},
+    fs::{self, File},
+    io::{self, ErrorKind, Read, Write},
+    thread,
     time::Duration,
+    u64, usize,
 };
 use stopwatch::Stopwatch;
 use sysinfo::System;
-use rl_hours_tracker::website_files;
 
 fn main() {
     // String reference of the Rocket League process name
@@ -35,7 +31,8 @@ fn main() {
     // Mutable string for user option
     let mut option = String::new();
 
-    println!("
+    println!(
+        "
    ___           __       __    __                         
   / _ \\___  ____/ /_____ / /_  / /  ___ ___ ____ ___ _____ 
  / , _/ _ \\/ __/  '_/ -_) __/ / /__/ -_) _ `/ _ `/ // / -_)
@@ -45,7 +42,8 @@ fn main() {
  / _  / _ \\/ // / __(_-<    / / / __/ _ `/ __/  '_/ -_) __/
 /_//_/\\___/\\_,_/_/ /___/   /_/ /_/  \\_,_/\\__/_/\\_\\\\__/_/   
                                                            
-");
+"
+    );
 
     // Create the folder directories for the program
     let folder = fs::create_dir("C:\\RLHoursFolder");
@@ -56,7 +54,14 @@ fn main() {
     let website_images = fs::create_dir("C:\\RLHoursFolder\\website\\images");
 
     // Store the folder results in Vector
-    let folder_vec: Vec<Result<(), io::Error>> = vec![folder, website_folder, website_pages, website_css, website_js, website_images];
+    let folder_vec: Vec<Result<(), io::Error>> = vec![
+        folder,
+        website_folder,
+        website_pages,
+        website_css,
+        website_js,
+        website_images,
+    ];
 
     // Create the directories for the program
     let folders_result = create_directory(folder_vec);
@@ -66,7 +71,10 @@ fn main() {
         Ok(_) => {
             println!("All directories successfully created!");
         }
-        Err(e) => panic!("There was an error when creating the programs directories.\n Error Kind: {}\n{e}", e.kind())
+        Err(e) => panic!(
+            "There was an error when creating the programs directories.\n Error Kind: {}\n{e}",
+            e.kind()
+        ),
     }
 
     // Updates the hours in the past two weeks if it returns true
@@ -78,9 +86,9 @@ fn main() {
     run_main_loop(process_name, &mut is_waiting, &mut option);
 }
 
-/// This function creates the directories for the program. Accepts [`Vec<Result>`] as an argument which is a Vector 
+/// This function creates the directories for the program. Accepts [`Vec<Result>`] as an argument which is a Vector
 /// of folder creation operations. Returns a [`Result<usize>`] when operations are successful.
-/// 
+///
 /// # Errors
 /// This function returns an [`io::Error`] in the case that there were any unexpected errors during folder creations, with the
 /// exceptance of [`ErrorKind::AlreadyExists`].
@@ -93,7 +101,7 @@ fn create_directory(folders: Vec<Result<(), io::Error>>) -> Result<usize, io::Er
             }
             Err(e) => {
                 if e.kind() != ErrorKind::AlreadyExists {
-                    return Err(e)
+                    return Err(e);
                 }
             }
         }
