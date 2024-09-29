@@ -16,12 +16,12 @@ use webbrowser;
 /// The Github repository and the `Url` to the files in the repository.
 #[derive(Debug, Clone)]
 pub struct Github<'a> {
-    owner: &'a str,
-    repo: &'a str,
-    branch: &'a str,
-    path: &'a str,
-    file: &'a str,
-    url: String,
+    pub owner: &'a str,
+    pub repo: &'a str,
+    pub branch: &'a str,
+    pub path: &'a str,
+    pub file: &'a str,
+    pub url: String,
 }
 
 impl<'a> Github<'a> {
