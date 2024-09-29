@@ -35,6 +35,18 @@ fn main() {
     // Mutable string for user option
     let mut option = String::new();
 
+    println!("
+   ___           __       __    __                         
+  / _ \\___  ____/ /_____ / /_  / /  ___ ___ ____ ___ _____ 
+ / , _/ _ \\/ __/  '_/ -_) __/ / /__/ -_) _ `/ _ `/ // / -_)
+/_/|_|\\___/\\__/_/\\_\\\\__/\\__/ /____/\\__/\\_,_/\\_, /\\_,_/\\__/ 
+   __ __                    ______         /___/_          
+  / // /__  __ _________   /_  __/______ _____/ /_____ ____
+ / _  / _ \\/ // / __(_-<    / / / __/ _ `/ __/  '_/ -_) __/
+/_//_/\\___/\\_,_/_/ /___/   /_/ /_/  \\_,_/\\__/_/\\_\\\\__/_/   
+                                                           
+");
+
     // Create the folder directories for the program
     let folder = fs::create_dir("C:\\RLHoursFolder");
     let website_folder = fs::create_dir("C:\\RLHoursFolder\\website");
@@ -107,7 +119,7 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
             *is_waiting = false;
 
             // Allow user to choose whether to continue the program or end it
-            println!("End program (y/n)?");
+            println!("End program (y/n)?\n");
             io::stdin().read_line(option).unwrap();
 
             // Check the option the user gave and respond accordingly
@@ -123,7 +135,7 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
         } else {
             // Print 'Waiting for Rocket League to start...' only once by changing the value of is_waiting to true
             if !*is_waiting {
-                println!("Waiting for Rocket League to start...");
+                println!("Waiting for Rocket League to start...\n");
                 *is_waiting = true;
             }
             // Sleep for 1000ms after every loop to save on CPU usage
@@ -141,7 +153,7 @@ fn record_hours(process_name: &str) {
     // Start the stopwatch
     let mut sw = Stopwatch::start_new();
 
-    println!("Rocket League is running");
+    println!("Rocket League is running\n");
 
     // Loop checks for when the process has ended
     loop {
@@ -576,8 +588,7 @@ fn write_to_hours(
                 // Checks if writing to the file was successful
                 match t_file.write_all(&rl_hours_str.as_bytes()) {
                     Ok(_) => {
-                        // Prints the elapsed time
-                        println!("Elapsed Time: {}s", seconds);
+                        ();
                     }
                     // Panics if there was an error writing to the file
                     Err(e) => panic!(
@@ -639,7 +650,7 @@ fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) {
 
                 // Checks if writing to the file was successful
                 match date_file.write_all(&today_str.as_bytes()) {
-                    Ok(_) => println!("{}", today_str),
+                    Ok(_) => (),
                     // Panics if there was an issue writing to the file
                     Err(e) => panic!(
                         "Error occurred in 'write_to_date' function: There was an issue appending to 'date.txt'.\nError Kind: {}",
