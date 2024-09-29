@@ -227,35 +227,35 @@ pub fn generate_website_files(boolean: bool) {
     github_main_css.set_fields(
         "OneilNvM",
         "rl-hours-tracker",
-        "github-http",
+        "master",
         "website/css",
         "main.css",
     );
     github_home_css.set_fields(
         "OneilNvM",
         "rl-hours-tracker",
-        "github-http",
+        "master",
         "website/css",
         "home.css",
     );
     github_animations_js.set_fields(
         "OneilNvM",
         "rl-hours-tracker",
-        "github-http",
+        "master",
         "website/js",
         "animations.js",
     );
     github_grey_icon.set_fields(
         "OneilNvM",
         "rl-hours-tracker",
-        "github-http",
+        "master",
         "website/images",
         "rl-icon-grey.png",
     );
     github_white_icon.set_fields(
         "OneilNvM",
         "rl-hours-tracker",
-        "github-http",
+        "master",
         "website/images",
         "rl-icon-white.png",
     );
@@ -352,7 +352,7 @@ pub fn generate_website_files(boolean: bool) {
             match idx_file.write_all(&contents.as_bytes()) {
                 Ok(_) => {
                     // If statement determines whether to prompt the user with the option to open the website
-                    if boolean == true {
+                    if boolean == false {
                         let mut option = String::new();
 
                         println!("Open hours website in browser (y/n)?");
