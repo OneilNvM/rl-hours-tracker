@@ -13,6 +13,7 @@ use std::{
 use tokio::runtime::Runtime;
 use webbrowser;
 
+/// The Github repository and the `Url` to the files in the repository.
 #[derive(Debug, Clone)]
 pub struct Github<'a> {
     owner: &'a str,
@@ -24,6 +25,7 @@ pub struct Github<'a> {
 }
 
 impl<'a> Github<'a> {
+    /// Creates a new instance with empty strings.
     pub fn new() -> Self {
         Github {
             owner: "",
@@ -35,6 +37,17 @@ impl<'a> Github<'a> {
         }
     }
 
+    /// This sets the fields of the Github instance.
+    /// 
+    /// The fields need to be set in order to create a valid `Url` when using [`Github::build_url`] or [`Github::build_image_url`]
+    /// 
+    /// ## Usage
+    /// 
+    /// ```
+    /// let mut github_repo = Github::new();
+    /// 
+    /// github_repo.set_fields("OneilNvM", "rl-hours-tracker", "master", "src", "main.rs");
+    /// ```
     pub fn set_fields(
         &mut self,
         owner: &'a str,
@@ -50,6 +63,22 @@ impl<'a> Github<'a> {
         self.file = file;
     }
 
+    /// Builds the `Url` for the raw contents of a file.
+    /// 
+    /// This function should only be used for files on Github which can be opened in raw format.
+    /// 
+    /// Fields need to be set first through [`Github::set_fields`].
+    /// 
+    /// ## Usage
+    /// 
+    /// ```
+    ///let mut github_repo = Github::new();
+    /// 
+    /// github_repo.set_fields(owner, repo, branch, path, file);
+    /// 
+    /// // Example Output: "https://raw.githubusercontent.com/OneilNvM/rl-hours-tracker/refs/heads/master/src/main.rs"
+    /// github_repo.build_url(); 
+    /// ```
     pub fn build_url(&mut self) {
         let url = format!(
             "https://raw.githubusercontent.com/{}/{}/refs/heads/{}/{}/{}",
@@ -58,6 +87,22 @@ impl<'a> Github<'a> {
         self.url = url;
     }
 
+    /// Builds the `Url` for the blob of an image file.
+    /// 
+    /// This function should only be used for image files in a Github repository.
+    /// 
+    /// Fields need to be set first through [`Github::set_fields`].
+    /// 
+    /// ## Usage
+    /// 
+    /// ```
+    ///let mut github_repo = Github::new();
+    /// 
+    /// github_repo.set_fields(owner, repo, branch, path, file);
+    /// 
+    /// // Example Output: "https://github.com/OneilNvM/rl-hours-tracker/blob/master/images/img.png"
+    /// github_repo.build_image_url(); 
+    /// ```
     pub fn build_image_url(&mut self) {
         let url = format!(
             "https://github.com/{}/{}/blob/{}/{}/{}",
@@ -67,57 +112,95 @@ impl<'a> Github<'a> {
     }
 }
 
+/// Sends a HTTP `GET` request and returns the response.
+/// 
+/// ## Usage
+/// 
+/// ```
+/// let response = send_request(url).await;
+/// 
+/// let text = response.text().await;
+/// ```
 pub async fn send_request(url: String) -> Response {
+    // Construct a new client instance
     let client = Client::new();
 
+    // Send the GET request
     let request = client.get(url).send().await;
 
+    // Handle the request
     match request {
         Ok(response) => response,
         Err(e) => panic!("There was an issue requesting a website file.\n{e}"),
     }
 }
 
+/// Handles the response received from [`send_request`].
+/// 
+/// This function specifically handles the Urls from the [`Github`] instance, which was created
+/// through [`Github::build_url`].
 pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
+    // Create a new vector to store response text from each Url
     let mut text_vec: Vec<String> = Vec::new();
 
+    // Loop through the Urls
     for url in urls {
+        // Call the function to send the GET request
         let response = send_request(url).await;
 
+        // Retrieve the full response text
         let text = response.text().await;
 
+        // Handle the response text
         match text {
             Ok(result) => text_vec.push(result),
             Err(e) => panic!("There was an issue when retrieving full response text.\n{e}"),
         }
     }
 
+    // Return the Vector
     text_vec
 }
 
+/// Handles the response received from [`send_request`].
+/// 
+/// This function specifically handles the urls from the [`Github`] instance, which was created
+/// through [`Github::build_image_url`].
 pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
+    // Create a new Vector to store response bytes from each Url
     let mut blob_vec: Vec<Bytes> = Vec::new();
 
+    // Loop through the Urls
     for url in urls {
+        // Call the function to send the GET request
         let response = send_request(url).await;
 
+        // Retrieve the image bytes
         let blob = response.bytes().await;
 
+        // Handle the response bytes
         match blob {
             Ok(result) => blob_vec.push(result),
             Err(e) => panic!("There was an issue when retrieving image bytes.\n{e}"),
         }
     }
 
+    // Return the Vector
     blob_vec
 }
 
+/// Runs the asynchronous functions to completion and returns a tuple of [`Vec<String>`] and [`Vec<Bytes>`]
+/// 
+/// This creates a new [`Runtime`] instance and runs the async functions to completion with [`Runtime::block_on`].
 pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> (Vec<String>, Vec<Bytes>) {
+    // Create a new Tokio Runtime instance
     let rt = Runtime::new().unwrap();
 
+    // Run the async functions
     let result1 = rt.block_on(handle_response(urls1));
     let result2 = rt.block_on(handle_image_response(urls2));
 
+    // Return the results as a tuple
     (result1, result2)
 }
 
@@ -133,12 +216,14 @@ pub fn generate_website_files(boolean: bool) {
     let mut hours_file = File::open("C:\\RLHoursFolder\\hours.txt");
     let mut date_file = File::open("C:\\RLHoursFolder\\date.txt");
 
+    // Create Github instances for the website files
     let mut github_main_css = Github::new();
     let mut github_home_css = Github::new();
     let mut github_animations_js = Github::new();
     let mut github_grey_icon = Github::new();
     let mut github_white_icon = Github::new();
 
+    // Set the fields for the Github instances
     github_main_css.set_fields(
         "OneilNvM",
         "rl-hours-tracker",
@@ -175,22 +260,27 @@ pub fn generate_website_files(boolean: bool) {
         "rl-icon-white.png",
     );
 
+    // Build the Urls for the Github instances
     github_main_css.build_url();
     github_home_css.build_url();
     github_animations_js.build_url();
     github_grey_icon.build_url();
     github_white_icon.build_url();
 
+    // Create a Vector to store the Github instances which concern 'raw' files
     let github_text_vec = vec![
         github_main_css.url,
         github_home_css.url,
         github_animations_js.url,
     ];
 
+    // Create a Vector to store the Github instances which concern 'blob' files
     let github_blob_vec = vec![github_grey_icon.url, github_white_icon.url];
 
+    // Run asynchronous functions and destructure the returned tuple
     let (response_text, response_bytes) = run_async_functions(github_text_vec, github_blob_vec);
 
+    // Write the image bytes
     write(
         "C:\\RLHoursFolder\\website\\images\\rl-icon-grey.png",
         response_bytes[0].clone(),
