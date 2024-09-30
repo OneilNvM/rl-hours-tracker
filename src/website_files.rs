@@ -277,15 +277,16 @@ pub fn generate_website_files(boolean: bool) {
     // Run asynchronous functions and destructure the returned tuple
     let (response_text, response_bytes) = run_async_functions(github_text_vec, github_blob_vec);
 
+    let mut bytes_iter = response_bytes.iter();
     // Write the image bytes
     write(
         "C:\\RLHoursFolder\\website\\images\\rl-icon-grey.png",
-        response_bytes[0].clone(),
+        bytes_iter.next().unwrap(),
     )
     .unwrap();
     write(
         "C:\\RLHoursFolder\\website\\images\\rl-icon-white.png",
-        response_bytes[1].clone(),
+        bytes_iter.next().unwrap(),
     )
     .unwrap();
 
@@ -349,7 +350,7 @@ pub fn generate_website_files(boolean: bool) {
             match idx_file.write_all(&contents.as_bytes()) {
                 Ok(_) => {
                     // If statement determines whether to prompt the user with the option to open the website
-                    if boolean == true {
+                    if boolean == false {
                         let mut option = String::new();
 
                         println!("Open hours website in browser (y/n)?");
