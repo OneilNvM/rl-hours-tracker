@@ -960,7 +960,7 @@ dependencies = [
 
 [[package]]
 name = "rl-hours-tracker"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "build_html",
  "bytes",
