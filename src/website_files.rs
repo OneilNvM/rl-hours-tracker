@@ -350,7 +350,7 @@ pub fn generate_website_files(boolean: bool) {
             match idx_file.write_all(&contents.as_bytes()) {
                 Ok(_) => {
                     // If statement determines whether to prompt the user with the option to open the website
-                    if boolean == false {
+                    if boolean == true {
                         let mut option = String::new();
 
                         println!("Open hours website in browser (y/n)?");
