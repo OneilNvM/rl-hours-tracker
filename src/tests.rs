@@ -78,7 +78,7 @@ async fn test_sends_request() -> Result<(), reqwest::Error> {
     );
     instance.build_url();
 
-    let response = send_request(instance.url).await;
+    let response = send_request(&instance.url).await;
 
     let text = response.text().await?;
 
