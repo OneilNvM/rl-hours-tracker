@@ -12,7 +12,7 @@
 //!     println!("You got it Oneil :)");
 //! ```
 
-//! ## Library 
+//! ## Library
 //! The Rocket League Hours Tracker library contains modules which provide additional
 //! functionality to the Rocket League Hours Tracker binary. This library is currently
 //! implements the [`website_files`] module, which provides the functionality to generate
@@ -40,9 +40,11 @@
 //! website_files::generate_website_files(false);
 use chrono::{prelude::*, Duration as CDuration};
 use std::{
+    error::Error,
+    fmt::Display,
     fs::{self, File},
-    io::{self, ErrorKind, Read, Write},
-    thread,
+    io::{self, Read, Write},
+    process, thread,
     time::Duration,
     u64, usize,
 };
@@ -52,6 +54,21 @@ use sysinfo::System;
 #[cfg(test)]
 mod tests;
 pub mod website_files;
+
+/// Custom error for [`calculate_past_two`] function
+#[derive(Debug, Clone)]
+pub struct PastTwoError;
+
+impl Display for PastTwoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "next closest date to the date two weeks ago could not be found."
+        )
+    }
+}
+
+impl Error for PastTwoError {}
 
 /// This function runs the program
 pub fn run() {
@@ -66,13 +83,15 @@ pub fn run() {
     run_main_loop(process_name, &mut is_waiting, &mut option);
 }
 
-/// This function creates the directories for the program. Accepts [`Vec<Result>`] as an argument which is a Vector
-/// of folder creation operations. Returns a [`Result<usize>`] when operations are successful.
+/// This function creates the directories for the program. It creates a local [`Vec<Result<()>>`]
+/// which stores [`fs::create_dir`] results.
+///
+/// This function then returns a [`Vec<Result<()>>`] which stores any errors that may have occurred
 ///
 /// # Errors
-/// This function returns an [`io::Error`] in the case that there were any unexpected errors during folder creations, with the
-/// exceptance of [`ErrorKind::AlreadyExists`].
-pub fn create_directory() -> Result<usize, io::Error> {
+/// This function stores an [`io::Error`] in the output Vector if there was any issue creating a folder.
+
+pub fn create_directory() -> Vec<Result<(), io::Error>> {
     // Create the folder directories for the program
     let folder = fs::create_dir("C:\\RLHoursFolder");
     let website_folder = fs::create_dir("C:\\RLHoursFolder\\website");
@@ -91,21 +110,11 @@ pub fn create_directory() -> Result<usize, io::Error> {
         website_images,
     ];
 
-    // Loop through all the folder creations and create the folders
-    for folder in folder_vec {
-        match folder {
-            Ok(_) => {
-                ();
-            }
-            Err(e) => {
-                if e.kind() != ErrorKind::AlreadyExists {
-                    return Err(e);
-                }
-            }
-        }
-    }
+    // Iterate through all the folder creations and filter for any errors
+    let result: Vec<Result<(), io::Error>> =
+        folder_vec.into_iter().filter(|f| f.is_err()).collect();
 
-    Ok(0)
+    result
 }
 
 /// This function runs the main loop of the program. This checks if the `RocketLeague.exe` process is running and
@@ -178,24 +187,33 @@ fn record_hours(process_name: &str) {
 
             // Calls the function which writes the date the program is run, along with the seconds elapsed during
             // the session to the 'date.txt' file
-            write_to_date(date_result, &seconds);
+            write_to_date(date_result, &seconds).unwrap_or_else(|e| {
+                eprintln!("error writing to date.txt: {e}");
+                process::exit(1);
+            });
 
             // Buffer which stores the hours in the past two weeks
             // The 'Some' value is unwrapped if there were no issues or 'u64::MAX'
             // is the value if there were issues
-            let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
+            let hours_buffer = calculate_past_two().unwrap_or_else(|e| {
+                eprintln!("error calculating past two: {e}");
+                0
+            });
 
             // This condition checks the value of the buffer
-            if hours_buffer != u64::MAX {
+            if hours_buffer != 0 {
                 // Stores the hours in the past two weeks as f32
                 let hours_past_two = hours_buffer as f32 / 3600_f32;
 
                 // Calls the function to write the total seconds, hours, and hours in the past two weeks
                 // to the 'hours.txt' file
-                write_to_hours(hours_result, &seconds, &hours, &hours_past_two, &sw);
+                write_to_hours(hours_result, &seconds, &hours, &hours_past_two, &sw)
+                    .unwrap_or_else(|e| {
+                        eprintln!("error writing to hours.txt: {e}");
+                        process::exit(1);
+                    });
             } else {
-                // Prints this line if the hours in the past two weeks were not calculated
-                println!("The hours in the past two weeks was not calculated.");
+                break;
             }
 
             break;
@@ -207,78 +225,77 @@ fn record_hours(process_name: &str) {
 
 /// This function updates the hours in the past two weeks in the `hours.txt` file.
 /// The hours past two is calculated through the [`calculate_past_two`] function
-/// The function returns `true` if the new string has been written to `hours.txt`.
-/// `false` is returned if `hours.txt` does not exist.
-pub fn update_past_two() -> bool {
+/// The function returns a [`Result<bool>`] if the function was able to successfully
+/// update the hours past two, and write it to the `hours.txt` file.
+///
+/// # Errors
+/// Returns an [`io::Error`] if there were any issues with file operations.
+pub fn update_past_two() -> Result<bool, io::Error> {
     // Open the 'hours.txt' file in read mode
     let hours_file_result = File::open("C:\\RLHoursFolder\\hours.txt");
 
     // Buffer which stores the hours in the past two weeks
     // The 'Some' value is unwrapped if there were no issues or 'u64::MAX'
     // is the value if there were issues
-    let hours_buffer = calculate_past_two().unwrap_or(u64::MAX);
+    let hours_buffer = calculate_past_two().unwrap_or_else(|e| {
+        eprintln!("error calculating past two: {e}\n");
+        0
+    });
 
     // Uninitialized variable for the hours in the past two weeks
     let hours_past_two;
 
     // This condition checks the value of the buffer
-    if hours_buffer != u64::MAX {
+    if hours_buffer != 0 {
         // Set the uninitialized variable to the buffer value
         hours_past_two = hours_buffer as f32 / 3600_f32;
     } else {
-        // Prints this line and returns false
-        println!("Past two was not calculated.");
-        return false;
+        // Returns false
+        return Ok(false);
     }
 
     // Checks if the 'hours.txt' file exists, then stores the File in the mutable 'file' variable
-    if let Ok(mut file) = hours_file_result {
-        // Create a new empty String
-        let mut hours_file_str = String::new();
+    match hours_file_result {
+        Ok(mut file) => {
+            // Create a new empty String
+            let mut hours_file_str = String::new();
 
-        // Match statement returns the true if operation was successful or panics if there was an error
-        let val: bool = match file.read_to_string(&mut hours_file_str) {
-            Ok(_) => {
-                // Deconstruct the seconds and hours tuple returned by the retrieve_time function
-                let (seconds, hours) = retrieve_time(&hours_file_str);
+            // Match statement returns the true if operation was successful or panics if there was an error
+            match file.read_to_string(&mut hours_file_str) {
+                Ok(_) => {
+                    // Deconstruct the seconds and hours tuple returned by the retrieve_time function
+                    let (seconds, hours) = retrieve_time(&hours_file_str);
 
-                // Creates or truncates the 'hours.txt' file and opens it in write mode
-                let write_hours_result = File::create("C:\\RLHoursFolder\\hours.txt");
+                    // Creates or truncates the 'hours.txt' file and opens it in write mode
+                    let write_hours_result = File::create("C:\\RLHoursFolder\\hours.txt");
 
-                // Checks if the 'hours.txt' file was created, then stores the File in the mutable 'w_file' variable
-                match write_hours_result {
-                    Ok(mut w_file) => {
-                        // Stores the new contents of the file as String
-                        let rl_hours_str = format!("Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}hrs\n", seconds, hours, hours_past_two);
+                    // Checks if the 'hours.txt' file was created, then stores the File in the mutable 'w_file' variable
+                    match write_hours_result {
+                        Ok(mut w_file) => {
+                            // Stores the new contents of the file as String
+                            let rl_hours_str = format!("Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}hrs\n", seconds, hours, hours_past_two);
 
-                        // Checks if writing to the file was successful
-                        match w_file.write_all(&rl_hours_str.as_bytes()) {
-                            // Update the website files and returns true to val
-                            Ok(_) => {
-                                website_files::generate_website_files(false);
-                                true
-                            },
-                            // Panic if there was an error when writing to the file
-                            Err(e) => panic!("Error occurred in 'update_past_two' function: There was an issue writing to 'hours.txt'.\nError Kind: {}", e.kind())
+                            // Checks if writing to the file was successful
+                            match w_file.write_all(&rl_hours_str.as_bytes()) {
+                                // Update the website files and returns true
+                                Ok(_) => {
+                                    website_files::generate_website_files(false);
+                                    Ok(true)
+                                }
+                                // Returns an error if there was an issue when writing to the file
+                                Err(e) => return Err(e),
+                            }
                         }
+                        // Returns an error if there was an issue creating the file
+                        Err(e) => return Err(e),
                     }
-                    // Panic if there was an error creating the file
-                    Err(e) => panic!(
-                        "Error occurred in 'update_past_two' function: There was an issue with file creation.\nError kind: {}",
-                        e.kind()
-                    ),
                 }
+                // Returns an error if there was an issue reading the file
+                Err(e) => return Err(e),
             }
-            // Panic if there was an error reading the file
-            Err(e) => {
-                println!("Past Two not updated: {}", e.kind());
-                false
-            }
-        };
-
-        val
-    } else {
-        false
+        }
+        // Returns an error if there was an issue opening the file
+        Err(e) => return Err(e),
     }
 }
 
@@ -332,7 +349,7 @@ fn retrieve_time(contents: &String) -> (u64, f32) {
 
 /// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`prim@usize`] as an index of the closest
 /// after the date two weeks ago.
-fn closest_date(split_newline: &Vec<&str>) -> usize {
+pub fn closest_date(split_newline: &Vec<&str>) -> usize {
     // Store the local date today
     let today = Local::now().date_naive();
     // Store the date two weeks ago
@@ -433,8 +450,13 @@ fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
 /// The contents from `date.txt` are read and split by `\n` character and stored in a [`Vec<&str>`] Vector.
 /// It is then ordered and looped through in order to compare the date to the current iteration of the date two weeks ago.
 /// The seconds are retrieved from the dates that match the current date in the iteration of the while loop and the seconds
-/// are added to `seconds_past_two` which is returned as an [`Option<u64>`] at the end of the function.
-pub fn calculate_past_two() -> Option<u64> {
+/// are added to `seconds_past_two` which is returned as an [`Result<u64>`] at the end of the function.
+///
+/// # Errors
+/// This function returns [`Box<dyn Error>`] which could potentially be two types of errors:
+/// - A [`PastTwoError`], which is a custom error which occurs when [`closest_date`] fails.
+/// - An [`io::Error`], which occurs when the `date.txt` file could not be opened, or read.
+pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
     // Open the 'date.txt' file in read mode
     let date_file_result = File::open("C:\\RLHoursFolder\\date.txt");
     // Initialize a mutable variable as u64 for the seconds past two
@@ -488,8 +510,7 @@ pub fn calculate_past_two() -> Option<u64> {
                         if closest != usize::MAX {
                             split_line_copy = &split_newline[closest..];
                         } else {
-                            println!("The closest date could not be found");
-                            return None
+                            return Err(PastTwoError.into());
                         }
                     }
 
@@ -535,17 +556,14 @@ pub fn calculate_past_two() -> Option<u64> {
                         cur_date += CDuration::days(1);
                     }
                 }
-                // Panics if there was an error reading the file
-                Err(e) => panic!(
-                    "Error occurred in 'calculate_past_two' function: There was an issue reading 'date.txt'.\nError Kind: {}",
-                    e.kind()
-                ),
+                // Returns an error if there was an issue reading the file
+                Err(e) => return Err(e.into()),
             }
         }
-        // Panics if there was an error opening the file
-        Err(e) => println!("Past Two not calculated. Error Kind: {}", e.kind()),
+        // Returns an error if there was an issue opening the file
+        Err(e) => return Err(e.into()),
     }
-    Some(seconds_past_two)
+    Ok(seconds_past_two)
 }
 
 /// This function constructs a new [`String`] which will have the contents to write to `hours.txt` with new hours and seconds
@@ -569,40 +587,47 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
 }
 
 /// This function writes the new contents to the `hours.txt` file. This includes the total `seconds`, `hours`, and `hours_past_two`.
+/// This function then returns a [`Result<()>`] when file operations were all successful.
+///
+/// # Errors
+/// This function returns an [`io::Error`] if any file operations failed.
 fn write_to_hours(
     hours_result: Result<File, io::Error>,
     seconds: &u64,
     hours: &f32,
     hours_past_two: &f32,
     sw: &Stopwatch,
-) {
+) -> Result<(), io::Error> {
     // Checks if the file exists, then stores the File into the mutable 'file' variable
     if let Ok(mut file) = hours_result {
         // Mutable variable to store file contents as a String
         let mut contents = String::new();
 
         // Checks if the file reads successfully, write new data to the file
-        if let Ok(_) = file.read_to_string(&mut contents) {
-            // Stores the new contents for the file as a String
-            let rl_hours_str = return_new_hours(&contents, seconds, hours, hours_past_two);
+        match file.read_to_string(&mut contents) {
+            Ok(_) => {
+                // Stores the new contents for the file as a String
+                let rl_hours_str = return_new_hours(&contents, seconds, hours, hours_past_two);
 
-            // Opens the file in write mode
-            let truncated_file = File::create("C:\\RLHoursFolder\\hours.txt");
+                // Opens the file in write mode
+                let truncated_file = File::create("C:\\RLHoursFolder\\hours.txt");
 
-            // Checks if the file was exists, then stores the truncated File into the mutable 't_file' variable
-            if let Ok(mut t_file) = truncated_file {
-                // Checks if writing to the file was successful
-                match t_file.write_all(&rl_hours_str.as_bytes()) {
-                    Ok(_) => {
-                        ();
+                // Checks if the file was exists, then stores the truncated File into the mutable 't_file' variable
+                match truncated_file {
+                    Ok(mut t_file) => {
+                        // Checks if writing to the file was successful
+                        match t_file.write_all(&rl_hours_str.as_bytes()) {
+                            Ok(_) => Ok(()),
+                            // Returns an error if there was an issue writing to the file
+                            Err(e) => Err(e),
+                        }
                     }
-                    // Panics if there was an error writing to the file
-                    Err(e) => panic!(
-                        "Error occurred in 'write_to_hours' function: There was an issue when truncating 'hours.txt'.\nError Kind: {}",
-                        e.kind()
-                    ),
+                    // Returns an error if there was an issue creating the file
+                    Err(e) => Err(e),
                 }
             }
+            // Returns an error if there was an issue reading the file
+            Err(e) => Err(e),
         }
     } else {
         // Checks if the file was created successfully, then stores the File in the mutable 'file' variable
@@ -617,19 +642,16 @@ fn write_to_hours(
 
                 // Checks if writing to the file was successful
                 match file.write_all(&rl_hours_str.as_bytes()) {
-                    Ok(_) => println!("The hours file was successfully created"),
-                    // Panic if there was any kind of error during writing process
-                    Err(e) => panic!(
-                        "Error occurred in 'write_to_hours' function: There was an issue writing to 'hours.txt'.\nError Kind: {}",
-                        e.kind()
-                    ),
+                    Ok(_) => {
+                        println!("The hours file was successfully created");
+                        Ok(())
+                    }
+                    // Returns an error if there was any kind of issue during writing process
+                    Err(e) => Err(e),
                 }
             }
-            // Panic if there was an error when attempting to create the file
-            Err(e) => panic!(
-                "Error occurred in 'write_to_hours' function: There was an issue creating 'hours.txt'.\nError Kind: {}",
-                e.kind()
-            ),
+            // Returns an error if there was an issue when attempting to create the file
+            Err(e) => Err(e),
         }
     }
 }
@@ -637,7 +659,7 @@ fn write_to_hours(
 /// This function writes new contents to the `date.txt` file. This uses the [`Local`] struct which allows us to use the [`Local::now()`]
 /// function to retrieve the local date and time as [`DateTime<Local>`]. The date is then turned into a [`NaiveDate`] by using [`DateTime<Local>::date_naive()`]
 /// which returns us the date by itself.
-fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) {
+fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) -> Result<(), io::Error> {
     // Checks if the date file exists, then handles file operations
     if let Ok(_) = date_result {
         // Opens the date file in append mode
@@ -656,19 +678,13 @@ fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) {
 
                 // Checks if writing to the file was successful
                 match date_file.write_all(&today_str.as_bytes()) {
-                    Ok(_) => (),
-                    // Panics if there was an issue writing to the file
-                    Err(e) => panic!(
-                        "Error occurred in 'write_to_date' function: There was an issue appending to 'date.txt'.\nError Kind: {}",
-                        e.kind()
-                    ),
+                    Ok(_) => Ok(()),
+                    // Returns an error if there was an issue writing to the file
+                    Err(e) => Err(e)
                 }
             }
-            // Panics if there was an issue opening the file
-            Err(e) => panic!(
-                "Error occurred in 'write_to_date' function: There was an issue opening 'date.txt'.\nError Kind: {}",
-                e.kind()
-            ),
+            // Returns an error if there was an issue opening the file
+            Err(e) => Err(e)
         }
     } else {
         // Checks if the file was created, then stores the File in the mutable 'file' variable
@@ -682,19 +698,16 @@ fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) {
 
                 // Checks if writing to the file was successful
                 match file.write_all(&today_str.as_bytes()) {
-                    Ok(_) => println!("The date file was successfully created"),
-                    // Panics if there was an error writing to the file
-                    Err(e) => panic!(
-                        "Error occurred in 'write_to_date' function: There was an issue writing to 'date.txt'.\nError Kind: {}",
-                        e.kind()
-                    ),
+                    Ok(_) => {
+                        println!("The date file was successfully created"); 
+                        Ok(())
+                    },
+                    // Returns an error if there was an issue writing to the file
+                    Err(e) => Err(e)
                 }
             }
-            // Panics if there was an error creating the file
-            Err(e) => panic!(
-                "Error occurred in 'write_to_date' function: There was an issue creating 'date.txt'.\nErorr Kind: {}",
-                e.kind()
-            ),
+            // Returns an error if there was an issue creating the file
+            Err(e) => Err(e)
         }
     }
 }

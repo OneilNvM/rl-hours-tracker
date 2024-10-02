@@ -1,3 +1,6 @@
+use std::io::ErrorKind;
+use std::process;
+
 use rl_hours_tracker::{create_directory, run, update_past_two};
 
 fn main() {
@@ -19,18 +22,24 @@ fn main() {
     let folders_result = create_directory();
 
     // Handles the successful result from the 'create_directory' function or panics if any errors occurred
-    match folders_result {
-        Ok(_) => {
-            println!("All directories successfully created!");
+    if folders_result.len() != 0 {
+        for folder in folders_result {
+            folder.unwrap_or_else(|e| {
+                if e.kind() != ErrorKind::AlreadyExists {
+                    eprintln!("There was an issue when creating folders: {e}");
+                    process::exit(1);
+                }
+            })
         }
-        Err(e) => panic!(
-            "There was an error when creating the programs directories.\n Error Kind: {}\n{e}",
-            e.kind()
-        ),
+    } else {
+        println!("All directories created successfully!");
     }
 
     // Updates the hours in the past two weeks if it returns true
-    if update_past_two() {
+    if update_past_two().unwrap_or_else(|e| {
+        eprintln!("past two could not be updated: {e}");
+        false
+    }) {
         println!("Past Two Updated!\n");
     }
 
