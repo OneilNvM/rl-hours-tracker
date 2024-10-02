@@ -5,7 +5,7 @@ use bytes::Bytes;
 use reqwest::{Client, Response};
 use std::{
     fs::{write, File},
-    io::{self, Error, ErrorKind, Read, Write},
+    io::{self, Error, ErrorKind, Read, Write}, process,
 };
 use tokio::runtime::Runtime;
 use webbrowser;
@@ -109,6 +109,23 @@ impl<'a> Github<'a> {
     }
 }
 
+/// This stores the file and image responses from the `GET` requests to GitHub
+#[derive(Debug, Clone)]
+pub struct GHResponse {
+    pub raw_url: Vec<String>,
+    pub image_url: Vec<Bytes>,
+}
+
+impl GHResponse {
+    /// Creates a new instance
+    pub fn new(raw_url: Vec<String>, image_url: Vec<Bytes>) -> GHResponse {
+        GHResponse {
+            raw_url,
+            image_url
+        }
+    }
+}
+
 /// Sends a HTTP `GET` request and returns the response.
 ///
 /// ## Usage
@@ -118,7 +135,7 @@ impl<'a> Github<'a> {
 ///
 /// let text = response.text().await;
 /// ```
-pub async fn send_request(url: String) -> Response {
+pub async fn send_request(url: &String) -> Response {
     // Construct a new client instance
     let client = Client::new();
 
@@ -128,7 +145,10 @@ pub async fn send_request(url: String) -> Response {
     // Handle the request
     match request {
         Ok(response) => response,
-        Err(e) => panic!("There was an issue requesting a website file.\n{e}"),
+        Err(e) => {
+            eprintln!("error sending get request for url: {url}\n{e}");
+            process::exit(1);
+        },
     }
 }
 
@@ -143,7 +163,7 @@ pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
     // Loop through the Urls
     for url in urls {
         // Call the function to send the GET request
-        let response = send_request(url).await;
+        let response = send_request(&url).await;
 
         // Retrieve the full response text
         let text = response.text().await;
@@ -151,7 +171,10 @@ pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
         // Handle the response text
         match text {
             Ok(result) => text_vec.push(result),
-            Err(e) => panic!("There was an issue when retrieving full response text.\n{e}"),
+            Err(e) => {
+                eprintln!("error retrieving full response text: {e}");
+                process::exit(1);
+            },
         }
     }
 
@@ -170,7 +193,7 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
     // Loop through the Urls
     for url in urls {
         // Call the function to send the GET request
-        let response = send_request(url).await;
+        let response = send_request(&url).await;
 
         // Retrieve the image bytes
         let blob = response.bytes().await;
@@ -178,7 +201,10 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
         // Handle the response bytes
         match blob {
             Ok(result) => blob_vec.push(result),
-            Err(e) => panic!("There was an issue when retrieving image bytes.\n{e}"),
+            Err(e) => {
+                eprintln!("error retrieving response bytes: {e}");
+                process::exit(1);
+            },
         }
     }
 
@@ -186,10 +212,10 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
     blob_vec
 }
 
-/// Runs the asynchronous functions to completion and returns a tuple of [`Vec<String>`] and [`Vec<Bytes>`]
+/// Runs the asynchronous functions to completion and returns a [`GHResponse`] instance.
 ///
 /// This creates a new [`Runtime`] instance and runs the async functions to completion with [`Runtime::block_on`].
-pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> (Vec<String>, Vec<Bytes>) {
+pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> GHResponse {
     // Create a new Tokio Runtime instance
     let rt = Runtime::new().unwrap();
 
@@ -197,14 +223,20 @@ pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> (Vec<Strin
     let result1 = rt.block_on(handle_response(urls1));
     let result2 = rt.block_on(handle_image_response(urls2));
 
-    // Return the results as a tuple
-    (result1, result2)
+    // Construct a new GHResponse instance with the raw_url and image_url Vectors
+    let github_response = GHResponse::new(result1, result2);
+
+    // Return the GHResponse instance
+    github_response
 }
 
 /// This function is used to generate the necessary files for the Rocket League Hours Tracker website.
 /// It accepts a bool [`bool`] as an argument which determines whether the option to open the website
 /// in the browser should appear or not.
-pub fn generate_website_files(boolean: bool) {
+/// 
+/// # Errors
+/// Returns an [`io::Error`] if there were any file operations which failed
+pub fn generate_website_files(boolean: bool) -> Result<(), io::Error> {
     // Create and open files
     let index = File::create("C:\\RLHoursFolder\\website\\pages\\index.html");
     let main_styles = File::create("C:\\RLHoursFolder\\website\\css\\main.css");
@@ -274,58 +306,59 @@ pub fn generate_website_files(boolean: bool) {
     // Create a Vector to store the Github instances which concern 'blob' files
     let github_blob_vec = vec![github_grey_icon.url, github_white_icon.url];
 
-    // Run asynchronous functions and destructure the returned tuple
-    let (response_text, response_bytes) = run_async_functions(github_text_vec, github_blob_vec);
+    // Run asynchronous functions and return a GHResponse instance
+    let ghresponse = run_async_functions(github_text_vec, github_blob_vec);
 
-    let mut bytes_iter = response_bytes.iter();
+    // Declare variables to hold an Iterator for the raw_url and image_url Vectors
+    let mut bytes_iter = ghresponse.image_url.iter();
+    let mut raw_iter = ghresponse.raw_url.iter();
+
     // Write the image bytes
     write(
         "C:\\RLHoursFolder\\website\\images\\rl-icon-grey.png",
         bytes_iter.next().unwrap(),
     )
-    .unwrap();
+    .unwrap_or_else(|e| eprintln!("error writing rl-icon-grey.png: {e}"));
     write(
         "C:\\RLHoursFolder\\website\\images\\rl-icon-white.png",
         bytes_iter.next().unwrap(),
     )
-    .unwrap();
+    .unwrap_or_else(|e| eprintln!("error writing rl-icon-white.png: {e}"));
 
     // Creates the main.css file
     match main_styles {
         Ok(mut ms_file) => {
             // Writes the CSS content to the file
-            match ms_file.write_all(response_text[0].as_bytes()) {
+            match ms_file.write_all(raw_iter.next().unwrap().as_bytes()) {
                 Ok(_) => (),
-                Err(e) => panic!("There was an issue when writing to main.css: {e}"),
+                Err(e) => eprintln!("error writing to main.css: {e}"),
             }
         }
-        Err(e) => panic!("There was an issue with main styles: {:?}", e),
+        Err(e) => eprintln!("error creating main.css: {e}"),
     }
 
     // Creates the home.css file
     match home_styles {
         Ok(mut hs_file) => {
             // Writes the CSS content to the file
-            match hs_file.write_all(response_text[1].as_bytes()) {
+            match hs_file.write_all(raw_iter.next().unwrap().as_bytes()) {
                 Ok(_) => (),
-                Err(e) => panic!("There was an issue when writing to home.css: {e}"),
+                Err(e) => eprintln!("error writing to home.css: {e}"),
             }
         }
-        Err(e) => panic!("There was an issue when creating main.css: {e}"),
+        Err(e) => eprintln!("error creating home.css: {e}"),
     }
 
     // Creates the animations.js file
     match animations_js {
         Ok(mut a_js_file) => {
             // Writes the JavaScript content to the file
-            match a_js_file.write_all(response_text[2].as_bytes()) {
+            match a_js_file.write_all(raw_iter.next().unwrap().as_bytes()) {
                 Ok(_) => (),
-                Err(e) => {
-                    panic!("There was an issue when writing to the animations JavaScript file: {e}")
-                }
+                Err(e) => eprintln!("error writing to animations.js: {e}")
             }
         }
-        Err(e) => panic!("There was an issue when creating the animations JavaScript file: {e}"),
+        Err(e) => eprintln!("error creating animations.js: {e}"),
     }
 
     // Creates the index.html file
@@ -340,10 +373,7 @@ pub fn generate_website_files(boolean: bool) {
                     // Initialize the 'contents' variable with the Html
                     contents = page.replace("<body>", "<body class=\"body adaptive\">");
                 }
-                Err(e) => {
-                    println!("Error in 'generate_page', website not generated. Error Kind: {}\nError message: {e}", e.kind());
-                    return;
-                }
+                Err(e) => return Err(e)
             }
 
             // Writes the index.html file
@@ -364,11 +394,12 @@ pub fn generate_website_files(boolean: bool) {
                             };
                         }
                     }
+                    Ok(())
                 }
-                Err(e) => panic!("There was an issue when writing index.html: {e}"),
+                Err(e) => return Err(e),
             }
         }
-        Err(e) => panic!("There was an issue when creating index.html: {e}"),
+        Err(e) => return Err(e),
     }
 }
 

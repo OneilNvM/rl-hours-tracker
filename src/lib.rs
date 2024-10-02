@@ -83,10 +83,10 @@ pub fn run() {
     run_main_loop(process_name, &mut is_waiting, &mut option);
 }
 
-/// This function creates the directories for the program. It creates a local [`Vec<Result<()>>`]
+/// This function creates the directories for the program. It creates a local [`Vec<Result>`]
 /// which stores [`fs::create_dir`] results.
 ///
-/// This function then returns a [`Vec<Result<()>>`] which stores any errors that may have occurred
+/// This function then returns a [`Vec<Result>`] which stores any errors that may have occurred
 ///
 /// # Errors
 /// This function stores an [`io::Error`] in the output Vector if there was any issue creating a folder.
@@ -128,7 +128,7 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
             record_hours(process_name);
 
             // Generate the website files
-            website_files::generate_website_files(true);
+            website_files::generate_website_files(true).unwrap_or_else(|e| eprintln!("error generating website files: {e}\nKind: {}", e.kind()));
 
             // Change is_waiting value back to false
             *is_waiting = false;
@@ -273,13 +273,13 @@ pub fn update_past_two() -> Result<bool, io::Error> {
                     match write_hours_result {
                         Ok(mut w_file) => {
                             // Stores the new contents of the file as String
-                            let rl_hours_str = format!("Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}\nHours Past Two Weeks: {:.1}hrs\n", seconds, hours, hours_past_two);
+                            let rl_hours_str = format!("Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}hrs\nHours Past Two Weeks: {:.1}hrs\n", seconds, hours, hours_past_two);
 
                             // Checks if writing to the file was successful
                             match w_file.write_all(&rl_hours_str.as_bytes()) {
                                 // Update the website files and returns true
                                 Ok(_) => {
-                                    website_files::generate_website_files(false);
+                                    website_files::generate_website_files(false).unwrap_or_else(|e| eprintln!("error generating website files: {e}\nKind: {}", e.kind()));
                                     Ok(true)
                                 }
                                 // Returns an error if there was an issue when writing to the file
@@ -376,7 +376,7 @@ pub fn closest_date(split_newline: &Vec<&str>) -> usize {
 /// This function is used to perform a binary search on a [`Vec<&str>`] Vector and compares the dates in the Vector with
 /// the `c_date` [`String`]. The function then returns a [`prim@usize`] for the index of the date, or a [`usize::MAX`] if the
 /// date is not present.
-fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
+pub fn date_binary_search(split_newline: &Vec<&str>, c_date: &String) -> usize {
     // Initialize mutable variable 'high' with last index of Vector
     let mut high = split_newline.len() - 1;
     // Initialize mutable variable 'low' to 0
@@ -591,7 +591,7 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
 ///
 /// # Errors
 /// This function returns an [`io::Error`] if any file operations failed.
-fn write_to_hours(
+pub fn write_to_hours(
     hours_result: Result<File, io::Error>,
     seconds: &u64,
     hours: &f32,
@@ -659,7 +659,10 @@ fn write_to_hours(
 /// This function writes new contents to the `date.txt` file. This uses the [`Local`] struct which allows us to use the [`Local::now()`]
 /// function to retrieve the local date and time as [`DateTime<Local>`]. The date is then turned into a [`NaiveDate`] by using [`DateTime<Local>::date_naive()`]
 /// which returns us the date by itself.
-fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) -> Result<(), io::Error> {
+/// 
+/// # Errors
+/// Returns an [`io::Error`] if there were any file operations which failed.
+pub fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) -> Result<(), io::Error> {
     // Checks if the date file exists, then handles file operations
     if let Ok(_) = date_result {
         // Opens the date file in append mode
