@@ -1,7 +1,7 @@
 use std::io::ErrorKind;
 use std::process;
 
-use rl_hours_tracker::{create_directory, run, update_past_two};
+use rl_hours_tracker::{create_directory, run, run_self_update, update_past_two};
 
 fn main() {
     println!(
@@ -17,6 +17,8 @@ fn main() {
                                                            
 "
     );
+
+    run_self_update();
 
     // Create the directories for the program
     let folders_result = create_directory();
