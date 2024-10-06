@@ -1,39 +1,56 @@
-//! Check for updates on the private repo
-//!
-//! Private repo hosts the zip file with new binary
-//!
-//! If there is a new release, send get request to temporarily download zip file
-//!
-//! Extract the exe file from zip file
-//!
-//! Update the old exe file in the Program Files location with the new version
-//!
-//! Delete the temporary zip file and extracts
-//!
-//! Finish up anything else
+//! This module is responsible for performing update operations for the Rocket League Hours Tracker binary,
+//! which can be installed through the GitHub repository [releases](https://github.com/OneilNvM/rl-hours-tracker/releases)
+//! section.
+use bytes::Bytes;
 use reqwest::{
     self,
     Client
 };
-use std::{fs, io};
+use std::{error::Error, env, fs, io, path::PathBuf, process, thread, time::Duration};
+use directories::BaseDirs;
+use zip;
 
-pub async fn check_for_update() {
+/// Asynchronous function which checks the the GitHub repository for the latest release
+/// of the program.
+/// 
+/// If there is a new release, the function then runs the [`update`] function to replace the
+/// old files for the program with the new files from the `update.zip` archive on github.
+/// 
+/// # Errors
+/// This function returns a [`reqwest::Error`] if there were any errors sending `GET` request to GitHub
+/// or any error from the [`update`] function.
+pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
+    // Check if there was a prior update to finish any additional cleanup
+    match env::var("PRIOR_UPDATE") {
+        Ok(_) => additional_cleanup()?,
+        Err(_) => {
+            ();
+        }
+    }
+
+
+    // Create a new Client instance
     let client = Client::new();
 
+    // Send a GET request to the GitHub for the latest release
     let response = client
         .get("https://github.com/OneilNvM/rl-hours-tracker/releases/latest")
         .send()
-        .await
-        .unwrap();
+        .await?;
 
+    // Return the final url as a String
     let url = response.url().to_string();
 
+    // Store a reverse split vector of the url separated by '/' character
     let url_vec: Vec<&str> = url.rsplit("/").collect();
 
+    // Get the version number
     let version = url_vec[0].replace("v", "");
 
+    // Check if the latest version is equal to the current version
     if version == env!("CARGO_PKG_VERSION") {
-        println!("Latest Version: {version}")
+        println!("Latest Version: {version}");
+        Ok(())
     } else {
         let mut option = String::new();
 
@@ -41,28 +58,136 @@ pub async fn check_for_update() {
 
         io::stdin().read_line(&mut option).unwrap();
 
+        // Check if the user wants to update or not
         if option.trim().to_lowercase() == "y" {
             println!("\nDownloading update...\n");
-            test_update().await;
+            update(&version).await?;
+            Ok(())
         } else {
-            ()
+            Ok(())
         }
     }
 }
 
-
-async fn test_update() {
+/// This function updates the Rocket League Hours Tracker binary.
+/// 
+/// A HTTP `GET` request is sent to the GitHub repo's release section to download the bytes
+/// for `update.zip`.
+/// The zip is then extracted and the new files replace the old files.
+/// 
+/// # Errors
+/// This function returns file operation errors or a [`reqwest::Error`].
+pub async fn update(ver_num: &String) -> Result<(), Box<dyn Error>> {
+    // Create a new Client instance
     let client = Client::new();
 
+    // Store the url to download the zip file from
+    let url = format!("https://github.com/OneilNvM/rl-hours-tracker/releases/download/v{ver_num}/update.zip");
+
+    // Send the GET request to the GitHub repository for the 'update.zip' archive
     let response = client
-    .get("https://github.com/OneilNvM/rl-hours-tracker/releases/download/v0.3.5/rlht-setup.exe")
+    .get(url)
     .send()
-    .await
-    .unwrap();
+    .await?;
 
-    let download = response.bytes().await.unwrap();
+    // Return the Bytes of the zip archive
+    let download = response.bytes().await?;
 
-    fs::write("C:\\Program Files\\Rocket League Hours Tracker\\rlht-setup.exe", download).unwrap();
+    // Store the application's directory
+    let base_dir = BaseDirs::new().unwrap();
+    let app_dir = base_dir.config_local_dir().join("Programs").join("Rocket League Hours Tracker");
+    
+    // Create the tmp folder for the zip archive
+    let tmp_result = fs::create_dir(app_dir.join("tmp"));
 
-    println!("Download complete!\n");
+    // Handle the Result returned by the 'tmp_result' variable
+    if let Err(_) = tmp_result {
+        eprintln!("error creating tmp directory.\ncreating zip file locally.\n");
+        extract_local_zip(&app_dir, &download)?;
+    } else {
+        extract_update(app_dir, download)?;
+    }
+
+    println!("Update complete!\n");
+    thread::sleep(Duration::from_millis(1000));
+    println!("Please wait for the program to close...");
+    thread::sleep(Duration::from_millis(5000));
+
+    // Set the 'PRIOR_UPDATE' environment variable
+    env::set_var("PRIOR_UPDATE", "1");
+
+    process::exit(0)
+}
+
+fn additional_cleanup() -> Result<(), io::Error> {
+    let base_dir = BaseDirs::new().unwrap();
+    let app_dir = base_dir.config_local_dir().join("Programs").join("Rocket League Hours Tracker");
+
+    fs::remove_file(app_dir.join("old-rl-hours-tracker.exe"))?;
+
+    env::remove_var("PRIOR_UPDATE");
+
+    Ok(())
+}
+
+fn extract_update(app_dir: PathBuf, download: Bytes) -> Result<(), Box<dyn Error>> {
+    println!("Created 'tmp' directory...");
+
+    let file_name = app_dir.join("tmp").join("update.zip");
+
+    fs::write(file_name, download)?;
+
+    println!("Downloaded 'update.zip' archive...");
+
+    fs::rename(app_dir.join("rl-hours-tracker.exe"), app_dir.join("old-rl-hours-tracker.exe"))?;
+
+    println!("Removing old files...");
+
+    fs::remove_file(app_dir.join("unins000.dat"))?;
+    fs::remove_file(app_dir.join("unins000.exe"))?;
+
+    let update = fs::File::open(app_dir.join("tmp\\update.zip"))?;
+
+    println!("Extracting update files...");
+
+    let mut archive = zip::ZipArchive::new(update)?;
+    archive.extract(&app_dir)?;
+
+    println!("Update files extracted");
+
+    fs::remove_dir_all(app_dir.join("tmp"))?;
+
+    println!("Removed tmp directory...\n");
+
+    Ok(())
+}
+
+fn extract_local_zip(app_dir: &PathBuf, download: &Bytes) -> Result<(), Box<dyn Error>> {
+    let file_name = app_dir.join("update.zip");
+
+    fs::write(file_name, download)?;
+
+    println!("Downloaded 'update.zip' archive locally...");
+
+    fs::rename(app_dir.join("rl-hours-tracker.exe"), app_dir.join("old-rl-hours-tracker.exe"))?;
+
+    fs::remove_file(app_dir.join("unins000.dat"))?;
+    fs::remove_file(app_dir.join("unins000.exe"))?;
+
+    println!("Removing old files...");
+
+    let update = fs::File::open(app_dir.join("update.zip"))?;
+
+    println!("Extracting update files...");
+
+    let mut archive = zip::ZipArchive::new(update)?;
+    archive.extract(&app_dir)?;
+
+    println!("Update files extracted");
+
+    fs::remove_file(app_dir.join("update.zip"))?;
+
+    println!("Removed 'update.zip' archive...\n");
+
+    Ok(())
 }

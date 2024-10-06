@@ -72,10 +72,13 @@ impl Display for PastTwoError {
 
 impl Error for PastTwoError {}
 
-pub fn run_self_update() {
+/// This runs the [`update::check_for_update`] function
+pub fn run_self_update() -> Result<(), Box<dyn Error>> {
     let rt = Runtime::new().unwrap();
 
-    rt.block_on(update::check_for_update());
+    rt.block_on(update::check_for_update())?;
+
+    Ok(())
 }
 
 /// This function runs the program

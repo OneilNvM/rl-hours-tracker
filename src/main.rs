@@ -1,4 +1,4 @@
-use std::io::ErrorKind;
+use std::{env, io::ErrorKind};
 use std::process;
 
 use rl_hours_tracker::{create_directory, run, run_self_update, update_past_two};
@@ -18,7 +18,17 @@ fn main() {
 "
     );
 
-    run_self_update();
+    // Checks if the program is being run from the cargo directory.
+    // This is done to make sure that anyone installing the binary through 
+    // cargo does not run the self update functionality, as they can update
+    // the binary through cargo.
+    if let Ok(path) = env::current_dir() {
+        let dir = path.to_str().unwrap();
+
+        if !dir.contains(".cargo") {
+            run_self_update().unwrap_or_else(|e| eprintln!("error running self update: {e}"));
+        }
+    }
 
     // Create the directories for the program
     let folders_result = create_directory();
