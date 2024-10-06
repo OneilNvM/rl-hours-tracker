@@ -18,14 +18,14 @@ fn main() {
 "
     );
 
-    // Checks if the program is being run from the cargo directory.
+    // Checks if the program is being run from the AppData directory.
     // This is done to make sure that anyone installing the binary through 
     // cargo does not run the self update functionality, as they can update
     // the binary through cargo.
     if let Ok(path) = env::current_dir() {
         let dir = path.to_str().unwrap();
 
-        if !dir.contains(".cargo") {
+        if dir.contains("AppData") {
             run_self_update().unwrap_or_else(|e| eprintln!("error running self update: {e}"));
         }
     }
