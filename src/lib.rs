@@ -39,6 +39,7 @@
 //! // in a browser.
 //! website_files::generate_website_files(false);
 use chrono::{prelude::*, Duration as CDuration};
+use tokio::runtime::Runtime;
 use std::{
     error::Error,
     fmt::Display,
@@ -53,6 +54,7 @@ use sysinfo::System;
 
 #[cfg(test)]
 mod tests;
+pub mod update;
 pub mod website_files;
 
 /// Custom error for [`calculate_past_two`] function
@@ -69,6 +71,15 @@ impl Display for PastTwoError {
 }
 
 impl Error for PastTwoError {}
+
+/// This runs the [`update::check_for_update`] function
+pub fn run_self_update() -> Result<(), Box<dyn Error>> {
+    let rt = Runtime::new().unwrap();
+
+    rt.block_on(update::check_for_update())?;
+
+    Ok(())
+}
 
 /// This function runs the program
 pub fn run() {
