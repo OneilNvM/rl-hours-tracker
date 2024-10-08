@@ -8,10 +8,13 @@
 }
 
 .nav {
+    display: flex;
+    width: 100%;
+    height: 6%;
     position: fixed;
-    top: 1em;
-    right: 1em;
-    grid-area: nav;
+    z-index: 1;
+    animation-duration: 500ms;
+    animation-timing-function: ease-in;
 }
 
 .main {
@@ -41,41 +44,136 @@
     font-size: 12em;
     text-align: center;
     filter: contrast(1);
-    
-    transform: matrix3d(
-        1, 0, 0, 0,
-        0, 1, 0, -0.003,
-        0, 0, 1, 0,
-        0, 0, 0, 1.5);
+
+    transform: matrix3d(1, 0, 0, 0,
+            0, 1, 0, -0.003,
+            0, 0, 1, 0,
+            0, 0, 0, 1.5);
 }
 
 /* Nav Related Styling */
+@keyframes drop-down-nav {
+    0% {
+        transform: translateY(-5em);
+    }
+    100% {
+        transform: translateY(0em);
+    }
+}
+
+@keyframes reverse-drop-down-nav {
+    0% {
+        transform: translateY(0em);
+    }
+    100% {
+        transform: translateY(-5em);
+    }
+}
 
 .nav-container {
-    height: 100%;
+    width: 100%;
     align-items: center;
-    gap: 3em;
+    border-bottom: 1px grey solid;
+    background-color: rgb(31, 31, 31);
+}
+
+.home-div {
+    width: 25%;
+    height: 100%;
+}
+
+.home-div a {
+    height: 100%;
+    padding-left: 1em;
+    justify-content: space-evenly;
+    align-items: center;
+    text-decoration: none;
+}
+
+.home-div a span {
+    font-size: 1.8em;
+}
+
+.links-div {
+    width: 75%;
+    height: 100%;
 }
 
 .your-hours-div {
     text-align: center;
-    width: 100%;
+    width: 50%;
+    transition-duration: 700ms;
+    z-index: 2;
+}
+
+.date-and-times-div {
+    text-align: center;
+    width: 50%;
+    transition-duration: 700ms;
+}
+
+.your-hours-div:hover {
+    background-color: grey;
+    transform: translateY(0.2em) scale(1.1);
+}
+
+.date-and-times-div:hover {
+    background-color: grey;
+    transform: translateY(0.2em) scale(1.1);
+}
+
+.your-hours-div::before {
+    display: block;
+    content: "";
+    position: absolute;
+    top: 0;
+    width: 1px;
     height: 100%;
-    font-size: 2em;
+    background-color: grey;
+    z-index: -99;
+}
+
+.date-and-times-div::before {
+    display: block;
+    content: "";
+    position: absolute;
+    width: 1px;
+    height: 100%;
+    background-color: grey;
+    z-index: 0;
 }
 
 .your-hours-div a {
-    display: inline-block;
-    width: inherit;
-    height: inherit;
-    padding-top: 0.4em;
-    padding-bottom: 0.4em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    font-size: 2em;
+    text-decoration: none;
+}
+
+.date-and-times-div a {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    font-size: 2em;
     text-decoration: none;
 }
 
 @media (prefers-color-scheme: dark) {
     .main-title {
         -webkit-text-stroke: 2px white;
+    }
+
+    .home-div a:visited {
+        color: white;
+    }
+
+    .home-div a:link {
+        color: white;
     }
 
     .your-hours-div a:visited {
@@ -92,16 +190,6 @@
 
     .date-and-times-div a:link {
         color: white;
-    }
-
-    .nav-div::after {
-        display: block;
-        content: "";
-        position: relative;
-        top: 0.8em;
-        width: 100%;
-        height: 1px;
-        background-color: white;
     }
 
     .footer a:link {
@@ -118,6 +206,14 @@
         -webkit-text-stroke: 2px black;
     }
 
+    .home-div a:visited {
+        color: black;
+    }
+
+    .home-div a:link {
+        color: black;
+    }
+
     .your-hours-div a:visited {
         color: black;
     }
@@ -134,16 +230,6 @@
         color: black;
     }
 
-    .nav-div::after {
-        display: block;
-        content: "";
-        position: relative;
-        top: 0.8em;
-        width: 100%;
-        height: 1px;
-        background-color: black;
-    }
-
     .footer a:link {
         color: black;
     }
@@ -151,21 +237,6 @@
     .footer a:visited {
         color: black;
     }
-}
-
-.date-and-times-div {
-    text-align: center;
-    width: 100%;
-    font-size: 2em;
-}
-
-.date-and-times-div a {
-    display: inline-block;
-    width: inherit;
-    height: inherit;
-    padding-top: 0.4em;
-    padding-bottom: 0.4em;
-    text-decoration: none;
 }
 
 /* Main Related Styling */
@@ -183,7 +254,10 @@
     background: linear-gradient(to bottom, rgba(0, 119, 119, 0.062), rgba(102, 60, 255, 0.137));
 }
 
-.hours-div-container.color::before, .hours-div-container.color::after, .dates-div-container.color::before , .dates-div-container.color::after {
+.hours-div-container.color::before,
+.hours-div-container.color::after,
+.dates-div-container.color::before,
+.dates-div-container.color::after {
     display: inline-block;
     content: "";
     position: absolute;
@@ -220,10 +294,11 @@
 /* Main Content */
 
 .hours-div-container {
+    width: 60%;
     align-items: center;
     gap: 10em;
     opacity: 0;
-    transition: all 2s;
+    transition-duration: 2s;
 }
 
 .hours-div-container.visible {
@@ -237,7 +312,6 @@
 }
 
 .hours-div {
-
     justify-content: space-evenly;
     width: 50%;
     height: 30em;
@@ -252,8 +326,9 @@
 }
 
 .dates-div-container {
+    width: 60%;
     opacity: 0;
-    transition: all 2s;
+    transition-duration: 2s;
     align-items: center;
 }
 

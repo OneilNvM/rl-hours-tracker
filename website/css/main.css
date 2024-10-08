@@ -42,7 +42,7 @@
     grid-template-rows: 1.25fr 2fr 0.5fr;
     grid-template-areas:
         "hdr hdr"
-        "main nav"
+        "main main"
         "ftr ftr";
     row-gap: 1em;
     column-gap: 30em;
