@@ -1,42 +1,8 @@
 use crate::website_files::*;
 
 #[test]
-fn test_sets_github_fields() {
-    let mut instance = Github::new();
-
-    instance.set_fields(
-        "OneilNvM",
-        "rl-hours-tracker",
-        "master",
-        "website/images",
-        "rl-icon-black.png",
-    );
-
-    let fields_vec: Vec<&str> = vec![
-        instance.owner,
-        instance.repo,
-        instance.branch,
-        instance.path,
-        instance.file,
-    ];
-
-    assert_eq!(
-        fields_vec,
-        vec![
-            "OneilNvM",
-            "rl-hours-tracker",
-            "master",
-            "website/images",
-            "rl-icon-black.png"
-        ]
-    );
-}
-
-#[test]
-fn test_builds_raw_url() {
-    let mut instance = Github::new();
-
-    instance.set_fields(
+fn t_builds_raw_url() {
+    let mut instance = Github::new(
         "OneilNvM",
         "rl-hours-tracker",
         "master",
@@ -50,10 +16,8 @@ fn test_builds_raw_url() {
 }
 
 #[test]
-fn test_builds_image_url() {
-    let mut instance = Github::new();
-
-    instance.set_fields(
+fn t_builds_image_url() {
+    let mut instance = Github::new(
         "OneilNvM",
         "rl-hours-tracker",
         "master",
@@ -67,9 +31,8 @@ fn test_builds_image_url() {
 }
 
 #[tokio::test]
-async fn test_sends_request() -> Result<(), reqwest::Error> {
-    let mut instance = Github::new();
-    instance.set_fields(
+async fn t_sends_request() -> Result<(), reqwest::Error> {
+    let mut instance = Github::new(
         "OneilNvM",
         "rl-hours-tracker",
         "master",
@@ -85,4 +48,36 @@ async fn test_sends_request() -> Result<(), reqwest::Error> {
     println!("Output:\n{}", text);
 
     Ok(())
+}
+
+#[tokio::test]
+async fn t_handle_raw_response() {
+    let mut instance = Github::new("OneilNvM", "rl-hours-tracker", "master", "src", "main.rs");
+
+    instance.build_url();
+
+    let response = send_request(&instance.url).await;
+
+    let text = response.text().await;
+
+    assert!(text.is_ok())
+}
+
+#[tokio::test]
+async fn t_handle_image_response() {
+    let mut instance = Github::new(
+        "OneilNvM",
+        "rl-hours-tracker",
+        "master",
+        "website/images",
+        "rl-icon-black.png",
+    );
+
+    instance.build_image_url();
+
+    let response = send_request(&instance.url).await;
+
+    let text = response.bytes().await;
+
+    assert!(text.is_ok())
 }

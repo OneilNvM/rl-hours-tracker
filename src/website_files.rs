@@ -4,8 +4,7 @@ use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlElement, Htm
 use bytes::Bytes;
 use reqwest::{Client, Response};
 use std::{
-    fs::{write, File},
-    io::{self, Error, ErrorKind, Read, Write}, process,
+    fs::{write, File}, io::{self, Error, ErrorKind, Read, Write}, process, slice::Iter
 };
 use tokio::runtime::Runtime;
 use webbrowser;
@@ -13,65 +12,41 @@ use webbrowser;
 /// The Github repository and the `Url` to the files in the repository.
 #[derive(Debug, Clone)]
 pub struct Github<'a> {
-    pub owner: &'a str,
-    pub repo: &'a str,
-    pub branch: &'a str,
-    pub path: &'a str,
-    pub file: &'a str,
+    owner: &'a str,
+    repo: &'a str,
+    branch: &'a str,
+    path: &'a str,
+    file: &'a str,
     pub url: String,
 }
 
 impl<'a> Github<'a> {
     /// Creates a new instance with empty strings.
-    pub fn new() -> Self {
-        Github {
-            owner: "",
-            repo: "",
-            branch: "",
-            path: "",
-            file: "",
-            url: String::new(),
-        }
-    }
-
-    /// This sets the fields of the Github instance.
-    ///
-    /// The fields need to be set in order to create a valid `Url` when using [`Github::build_url`] or [`Github::build_image_url`]
-    ///
-    /// ## Usage
-    ///
-    /// ```
-    /// let mut github_repo = Github::new();
-    ///
-    /// github_repo.set_fields("OneilNvM", "rl-hours-tracker", "master", "src", "main.rs");
-    /// ```
-    pub fn set_fields(
-        &mut self,
+    pub fn new(
         owner: &'a str,
         repo: &'a str,
         branch: &'a str,
         path: &'a str,
         file: &'a str,
-    ) {
-        self.owner = owner;
-        self.repo = repo;
-        self.branch = branch;
-        self.path = path;
-        self.file = file;
+    ) -> Github<'a> {
+        Github {
+            owner,
+            repo,
+            branch,
+            path,
+            file,
+            url: String::new(),
+        }
     }
 
     /// Builds the `Url` for the raw contents of a file.
     ///
     /// This function should only be used for files on Github which can be opened in raw format.
     ///
-    /// Fields need to be set first through [`Github::set_fields`].
-    ///
     /// ## Usage
     ///
     /// ```
-    ///let mut github_repo = Github::new();
-    ///
-    /// github_repo.set_fields(owner, repo, branch, path, file);
+    ///let mut github_repo = Github::new("OneilNvM", "rl-hours-tracker", "master", "src", "main.rs");
     ///
     /// // Example Output: "https://raw.githubusercontent.com/OneilNvM/rl-hours-tracker/refs/heads/master/src/main.rs"
     /// github_repo.build_url();
@@ -88,14 +63,10 @@ impl<'a> Github<'a> {
     ///
     /// This function should only be used for image files in a Github repository.
     ///
-    /// Fields need to be set first through [`Github::set_fields`].
-    ///
     /// ## Usage
     ///
     /// ```
-    ///let mut github_repo = Github::new();
-    ///
-    /// github_repo.set_fields(owner, repo, branch, path, file);
+    ///let mut github_repo = Github::new("OneilNvM", "rl-hours-tracker", "master", "images", "img.png");
     ///
     /// // Example Output: "https://github.com/OneilNvM/rl-hours-tracker/blob/master/images/img.png"
     /// github_repo.build_image_url();
@@ -119,10 +90,7 @@ pub struct GHResponse {
 impl GHResponse {
     /// Creates a new instance
     pub fn new(raw_url: Vec<String>, image_url: Vec<Bytes>) -> GHResponse {
-        GHResponse {
-            raw_url,
-            image_url
-        }
+        GHResponse { raw_url, image_url }
     }
 }
 
@@ -148,7 +116,7 @@ pub async fn send_request(url: &String) -> Response {
         Err(e) => {
             eprintln!("error sending get request for url: {url}\n{e}");
             process::exit(1);
-        },
+        }
     }
 }
 
@@ -174,7 +142,7 @@ pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
             Err(e) => {
                 eprintln!("error retrieving full response text: {e}");
                 process::exit(1);
-            },
+            }
         }
     }
 
@@ -204,7 +172,7 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
             Err(e) => {
                 eprintln!("error retrieving response bytes: {e}");
                 process::exit(1);
-            },
+            }
         }
     }
 
@@ -233,55 +201,40 @@ pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> GHResponse
 /// This function is used to generate the necessary files for the Rocket League Hours Tracker website.
 /// It accepts a bool [`bool`] as an argument which determines whether the option to open the website
 /// in the browser should appear or not.
-/// 
+///
 /// # Errors
 /// Returns an [`io::Error`] if there were any file operations which failed
 pub fn generate_website_files(boolean: bool) -> Result<(), io::Error> {
-    // Create and open files
-    let index = File::create("C:\\RLHoursFolder\\website\\pages\\index.html");
-    let main_styles = File::create("C:\\RLHoursFolder\\website\\css\\main.css");
-    let home_styles = File::create("C:\\RLHoursFolder\\website\\css\\home.css");
-    let animations_js = File::create("C:\\RLHoursFolder\\website\\js\\animations.js");
-    let mut hours_file = File::open("C:\\RLHoursFolder\\hours.txt");
-    let mut date_file = File::open("C:\\RLHoursFolder\\date.txt");
-
     // Create Github instances for the website files
-    let mut github_main_css = Github::new();
-    let mut github_home_css = Github::new();
-    let mut github_animations_js = Github::new();
-    let mut github_grey_icon = Github::new();
-    let mut github_white_icon = Github::new();
-
-    // Set the fields for the Github instances
-    github_main_css.set_fields(
+    let mut github_main_css = Github::new(
         "OneilNvM",
         "rl-hours-tracker",
         "master",
         "website/css",
         "main.css",
     );
-    github_home_css.set_fields(
+    let mut github_home_css = Github::new(
         "OneilNvM",
         "rl-hours-tracker",
         "master",
         "website/css",
         "home.css",
     );
-    github_animations_js.set_fields(
+    let mut github_animations_js = Github::new(
         "OneilNvM",
         "rl-hours-tracker",
         "master",
         "website/js",
         "animations.js",
     );
-    github_grey_icon.set_fields(
+    let mut github_grey_icon = Github::new(
         "OneilNvM",
         "rl-hours-tracker",
         "master",
         "website/images",
         "rl-icon-grey.png",
     );
-    github_white_icon.set_fields(
+    let mut github_white_icon = Github::new(
         "OneilNvM",
         "rl-hours-tracker",
         "master",
@@ -325,6 +278,19 @@ pub fn generate_website_files(boolean: bool) -> Result<(), io::Error> {
     )
     .unwrap_or_else(|e| eprintln!("error writing rl-icon-white.png: {e}"));
 
+    // Create the files for the website
+    create_website_files(&mut raw_iter, boolean)
+}
+
+fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> Result<(), io::Error> {
+    // Create and open files
+    let index = File::create("C:\\RLHoursFolder\\website\\pages\\index.html");
+    let main_styles = File::create("C:\\RLHoursFolder\\website\\css\\main.css");
+    let home_styles = File::create("C:\\RLHoursFolder\\website\\css\\home.css");
+    let animations_js = File::create("C:\\RLHoursFolder\\website\\js\\animations.js");
+    let mut hours_file = File::open("C:\\RLHoursFolder\\hours.txt");
+    let mut date_file = File::open("C:\\RLHoursFolder\\date.txt");
+
     // Creates the main.css file
     match main_styles {
         Ok(mut ms_file) => {
@@ -355,7 +321,7 @@ pub fn generate_website_files(boolean: bool) -> Result<(), io::Error> {
             // Writes the JavaScript content to the file
             match a_js_file.write_all(raw_iter.next().unwrap().as_bytes()) {
                 Ok(_) => (),
-                Err(e) => eprintln!("error writing to animations.js: {e}")
+                Err(e) => eprintln!("error writing to animations.js: {e}"),
             }
         }
         Err(e) => eprintln!("error creating animations.js: {e}"),
@@ -373,7 +339,7 @@ pub fn generate_website_files(boolean: bool) -> Result<(), io::Error> {
                     // Initialize the 'contents' variable with the Html
                     contents = page.replace("<body>", "<body class=\"body adaptive\">");
                 }
-                Err(e) => return Err(e)
+                Err(e) => return Err(e),
             }
 
             // Writes the index.html file
@@ -390,7 +356,7 @@ pub fn generate_website_files(boolean: bool) -> Result<(), io::Error> {
                             if webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html")
                                 .is_ok()
                             {
-                                println!("200 OK");
+                                println!("OK\n");
                             };
                         }
                     }
