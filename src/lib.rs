@@ -39,7 +39,6 @@
 //! // in a browser.
 //! website_files::generate_website_files(false);
 use chrono::{prelude::*, Duration as CDuration};
-use tokio::runtime::Runtime;
 use std::{
     error::Error,
     fmt::Display,
@@ -51,6 +50,7 @@ use std::{
 };
 use stopwatch::Stopwatch;
 use sysinfo::System;
+use tokio::runtime::Runtime;
 
 #[cfg(test)]
 mod tests;
@@ -139,7 +139,9 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
             record_hours(process_name);
 
             // Generate the website files
-            website_files::generate_website_files(true).unwrap_or_else(|e| eprintln!("error generating website files: {e}\nKind: {}", e.kind()));
+            website_files::generate_website_files(true).unwrap_or_else(|e| {
+                eprintln!("error generating website files: {e}\nKind: {}", e.kind())
+            });
 
             // Change is_waiting value back to false
             *is_waiting = false;
@@ -187,6 +189,8 @@ fn record_hours(process_name: &str) {
             // Stops the stopwatch
             sw.stop();
 
+            println!("~~~ Record Hours: START ~~~\n");
+
             // Stores the seconds elapsed as u64
             let seconds: u64 = sw.elapsed_ms() as u64 / 1000;
             // Stores the hours as f32
@@ -223,6 +227,7 @@ fn record_hours(process_name: &str) {
                         eprintln!("error writing to hours.txt: {e}");
                         process::exit(1);
                     });
+            println!("\n~~~ Record Hours: FINISHED ~~~\n")
             } else {
                 break;
             }
@@ -290,7 +295,14 @@ pub fn update_past_two() -> Result<bool, io::Error> {
                             match w_file.write_all(&rl_hours_str.as_bytes()) {
                                 // Update the website files and returns true
                                 Ok(_) => {
-                                    website_files::generate_website_files(false).unwrap_or_else(|e| eprintln!("error generating website files: {e}\nKind: {}", e.kind()));
+                                    website_files::generate_website_files(false).unwrap_or_else(
+                                        |e| {
+                                            eprintln!(
+                                                "error generating website files: {e}\nKind: {}",
+                                                e.kind()
+                                            )
+                                        },
+                                    );
                                     Ok(true)
                                 }
                                 // Returns an error if there was an issue when writing to the file
@@ -476,12 +488,14 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
     // Checks if the 'date.txt' file was opened, then stores File in the mutable 'date_file' variable
     match date_file_result {
         Ok(mut date_file) => {
+            println!("\n~~~ Calculate Past Two: START ~~~\n");
             // Creates and empty String
             let mut date_file_str = String::new();
 
             // Checks if the file was read successfully
             match date_file.read_to_string(&mut date_file_str) {
                 Ok(_) => {
+                    println!("Dates retrieved...");
                     // Split the contents of file by newline character
                     let mut split_newline: Vec<&str> = date_file_str.split("\n").collect();
 
@@ -506,6 +520,7 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
                     // Declare variable for string reference slice
                     let split_line_copy: &[&str];
 
+                    println!("Finding date two weeks ago...");
                     // Assign value from date_binary_search to variable
                     let date_idx = date_binary_search(&split_newline, &cur_date.to_string());
 
@@ -514,17 +529,21 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
                     // as the first occurrence of the date two weeks ago
                     // Or, sets it to the closest date after the date two weeks ago
                     if date_idx != usize::MAX {
+                        println!("Date found...");
                         split_line_copy = &split_newline[date_idx..];
                     } else {
+                        println!("Date not found. Searching for closest date...");
                         let closest = closest_date(&split_newline);
 
                         if closest != usize::MAX {
+                            println!("Date found...");
                             split_line_copy = &split_newline[closest..];
                         } else {
                             return Err(PastTwoError.into());
                         }
                     }
 
+                    println!("Calculating past two...");
                     // While loop checks if the date is in the contents string and adds the seconds accompanied with it, to the seconds_past_two variable
                     while !is_after_today {
                         // Checks if the current iteration of the date two weeks ago is greater than today
@@ -574,12 +593,15 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
         // Returns an error if there was an issue opening the file
         Err(e) => return Err(e.into()),
     }
+
+    println!("Past two calculated\n\n~~~ Calculate Past Two: FINISHED ~~~\n");
     Ok(seconds_past_two)
 }
 
 /// This function constructs a new [`String`] which will have the contents to write to `hours.txt` with new hours and seconds
 /// and returns it.
 fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f32) -> String {
+    println!("Getting old hours...");
     // Retrieves the old time and seconds from the contents String
     let time = retrieve_time(contents);
 
@@ -626,9 +648,13 @@ pub fn write_to_hours(
                 // Checks if the file was exists, then stores the truncated File into the mutable 't_file' variable
                 match truncated_file {
                     Ok(mut t_file) => {
+                        println!("Writing to hours.txt...");
                         // Checks if writing to the file was successful
                         match t_file.write_all(&rl_hours_str.as_bytes()) {
-                            Ok(_) => Ok(()),
+                            Ok(_) => {
+                                println!("Successful!");
+                                Ok(())
+                            }
                             // Returns an error if there was an issue writing to the file
                             Err(e) => Err(e),
                         }
@@ -651,6 +677,7 @@ pub fn write_to_hours(
                                 "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}hrs\nHours Past Two Weeks: {:.1}hrs\n", total_seconds, total_hours, hours_past_two
                             );
 
+                println!("Writing to hours.txt...");
                 // Checks if writing to the file was successful
                 match file.write_all(&rl_hours_str.as_bytes()) {
                     Ok(_) => {
@@ -670,7 +697,7 @@ pub fn write_to_hours(
 /// This function writes new contents to the `date.txt` file. This uses the [`Local`] struct which allows us to use the [`Local::now()`]
 /// function to retrieve the local date and time as [`DateTime<Local>`]. The date is then turned into a [`NaiveDate`] by using [`DateTime<Local>::date_naive()`]
 /// which returns us the date by itself.
-/// 
+///
 /// # Errors
 /// Returns an [`io::Error`] if there were any file operations which failed.
 pub fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) -> Result<(), io::Error> {
@@ -690,15 +717,19 @@ pub fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) -> Res
                 // This String stores the date today, and the seconds elapsed in session
                 let today_str = format!("{} {}s\n", today, seconds);
 
+                println!("Appending to date.txt...");
                 // Checks if writing to the file was successful
                 match date_file.write_all(&today_str.as_bytes()) {
-                    Ok(_) => Ok(()),
+                    Ok(_) => {
+                        println!("Successful!");
+                        Ok(())
+                    }
                     // Returns an error if there was an issue writing to the file
-                    Err(e) => Err(e)
+                    Err(e) => Err(e),
                 }
             }
             // Returns an error if there was an issue opening the file
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     } else {
         // Checks if the file was created, then stores the File in the mutable 'file' variable
@@ -710,18 +741,19 @@ pub fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) -> Res
                 // This String stores the date today, and the seconds elapsed in session
                 let today_str = format!("{} {}s\n", today, seconds);
 
+                println!("Appending to date.txt...");
                 // Checks if writing to the file was successful
                 match file.write_all(&today_str.as_bytes()) {
                     Ok(_) => {
-                        println!("The date file was successfully created"); 
+                        println!("The date file was successfully created");
                         Ok(())
-                    },
+                    }
                     // Returns an error if there was an issue writing to the file
-                    Err(e) => Err(e)
+                    Err(e) => Err(e),
                 }
             }
             // Returns an error if there was an issue creating the file
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 }
