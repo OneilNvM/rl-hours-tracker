@@ -1,6 +1,7 @@
 //! This module is responsible for performing update operations for the Rocket League Hours Tracker binary,
 //! which can be installed through the GitHub repository [releases](https://github.com/OneilNvM/rl-hours-tracker/releases)
 //! section.
+use core::str;
 use bytes::Bytes;
 use reqwest::{
     self,
@@ -21,13 +22,22 @@ use zip;
 /// or any error from the [`update`] function.
 pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
     // Check if there was a prior update to finish any additional cleanup
-    match env::var("PRIOR_UPDATE") {
-        Ok(_) => additional_cleanup()?,
-        Err(_) => {
-            ();
+    let get_prior_update = process::Command::new("cmd").args(["/C", "set PRIOR_UPDATE"]).output();
+
+    match get_prior_update {
+        Ok(output) => {
+            let output_string = str::from_utf8(&output.stdout).unwrap();
+
+            if output_string.contains("1") {
+                additional_cleanup()?
+            } else {
+                ();
+            }
+        }
+        Err(e) => {
+            eprintln!("issue getting PRIOR_UPDATE: {e}");
         }
     }
-
 
     // Create a new Client instance
     let client = Client::new();
@@ -114,7 +124,16 @@ pub async fn update(ver_num: &String) -> Result<(), Box<dyn Error>> {
     thread::sleep(Duration::from_millis(5000));
 
     // Set the 'PRIOR_UPDATE' environment variable
-    env::set_var("PRIOR_UPDATE", "1");
+    let set_prior_update = process::Command::new("cmd").args(["/C", "setx", "PRIOR_UPDATE", "1"]).status();
+
+    match set_prior_update {
+        Ok(_) => {
+            ();
+        }
+        Err(e) => {
+            eprintln!("issue setting up PRIOR_UPDATE: {e}");
+        }
+    }
 
     process::exit(0)
 }
@@ -125,7 +144,17 @@ fn additional_cleanup() -> Result<(), io::Error> {
 
     fs::remove_file(app_dir.join("old-rl-hours-tracker.exe"))?;
 
-    env::remove_var("PRIOR_UPDATE");
+    let change_prior_update = process::Command::new("cmd").args(["/C", "setx", "PRIOR_UPDATE", "0"]).status();
+
+    match change_prior_update {
+        Ok(_) => {
+            ();
+        }
+        Err(e) => {
+            eprintln!("issue changing PRIOR_UPDATE: {e}");
+        }
+    }
+    println!("Cleanup successful");
 
     Ok(())
 }
