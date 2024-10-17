@@ -44,7 +44,7 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
 
     // Send a GET request to the GitHub for the latest release
     let response = client
-        .get("https://github.com/OneilNvM/rl-hours-tracker/releases/latest")
+        .get("https://github.com/OneilNvM/rl-hours-tracker/releases/tag/v0.3.9")
         .send()
         .await?;
 
