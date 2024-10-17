@@ -100,6 +100,14 @@ pub async fn update(ver_num: &String) -> Result<(), Box<dyn Error>> {
     .send()
     .await?;
 
+    if !response.status().is_success() {
+        println!("The newest update includes changes to the built-in updater.");
+        thread::sleep(Duration::from_secs(3));
+        println!("You will need to download the newest installer from GitHub.");
+        thread::sleep(Duration::from_secs(5));
+        process::exit(0)
+    }
+
     // Return the Bytes of the zip archive
     let download = response.bytes().await?;
 
