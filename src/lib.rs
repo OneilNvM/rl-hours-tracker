@@ -57,6 +57,8 @@ mod tests;
 pub mod update;
 pub mod website_files;
 
+pub type IoResult<T> = Result<T, io::Error>;
+
 /// Custom error for [`calculate_past_two`] function
 #[derive(Debug, Clone)]
 pub struct PastTwoError;
@@ -88,7 +90,7 @@ pub fn run() {
     // Mutable boolean to determine when the program is waiting for the process to run
     let mut is_waiting = false;
     // Mutable string for user option
-    let mut option = String::new();
+    let mut option = String::with_capacity(3);
 
     // Run the main loop
     run_main_loop(process_name, &mut is_waiting, &mut option);
@@ -102,7 +104,7 @@ pub fn run() {
 /// # Errors
 /// This function stores an [`io::Error`] in the output Vector if there was any issue creating a folder.
 
-pub fn create_directory() -> Vec<Result<(), io::Error>> {
+pub fn create_directory() -> Vec<IoResult<()>> {
     // Create the folder directories for the program
     let folder = fs::create_dir("C:\\RLHoursFolder");
     let website_folder = fs::create_dir("C:\\RLHoursFolder\\website");
@@ -112,7 +114,7 @@ pub fn create_directory() -> Vec<Result<(), io::Error>> {
     let website_images = fs::create_dir("C:\\RLHoursFolder\\website\\images");
 
     // Store the folder results in Vector
-    let folder_vec: Vec<Result<(), io::Error>> = vec![
+    let folder_vec: Vec<IoResult<()>> = vec![
         folder,
         website_folder,
         website_pages,
@@ -122,8 +124,7 @@ pub fn create_directory() -> Vec<Result<(), io::Error>> {
     ];
 
     // Iterate through all the folder creations and filter for any errors
-    let result: Vec<Result<(), io::Error>> =
-        folder_vec.into_iter().filter(|f| f.is_err()).collect();
+    let result: Vec<IoResult<()>> = folder_vec.into_iter().filter(|f| f.is_err()).collect();
 
     result
 }
@@ -154,7 +155,7 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
             if option.trim() == "y" || option.trim() == "Y" {
                 break 'main_loop;
             } else if option.trim() == "n" || option.trim() == "N" {
-                *option = String::new();
+                *option = String::with_capacity(3);
                 continue;
             } else {
                 println!("Unexpected input! Ending program.");
@@ -163,11 +164,28 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
         } else {
             // Print 'Waiting for Rocket League to start...' only once by changing the value of is_waiting to true
             if !*is_waiting {
-                println!("Waiting for Rocket League to start...\n");
-                *is_waiting = true;
+                print!("Waiting for Rocket League to start.\r");
+                io::stdout()
+                    .flush()
+                    .expect("could not flush the output stream");
+                thread::sleep(Duration::from_millis(500));
+                print!("Waiting for Rocket League to start..\r");
+                io::stdout()
+                    .flush()
+                    .expect("could not flush the output stream");
+                thread::sleep(Duration::from_millis(500));
+                print!("Waiting for Rocket League to start...\r");
+                io::stdout()
+                    .flush()
+                    .expect("could not flush the output stream");
+                thread::sleep(Duration::from_millis(500));
+                print!("{}[2K\r", 27 as char);
+                print!("Waiting for Rocket League to start\r");
+                io::stdout()
+                    .flush()
+                    .expect("could not flush the output stream");
+                thread::sleep(Duration::from_millis(500));
             }
-            // Sleep for 1000ms after every loop to save on CPU usage
-            thread::sleep(Duration::from_millis(1000));
         }
     }
 }
@@ -180,16 +198,63 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
 fn record_hours(process_name: &str) {
     // Start the stopwatch
     let mut sw = Stopwatch::start_new();
+    let mut update_secs = false;
+    let mut update_mins = false;
+    let mut prev_secs = 0;
+    let mut prev_mins = 0;
 
-    println!("Rocket League is running\n");
+    println!("\nRocket League is running\n");
 
     // Loop checks for when the process has ended
     loop {
+        if (sw.elapsed_ms() / 1000) >= 60 {
+            if !update_secs {
+                prev_secs = sw.elapsed_ms() / 1000;
+                update_secs = true;
+            }
+
+            if (sw.elapsed_ms() / 1000) / 60 >= 60 {
+                if !update_mins {
+                    prev_mins = (sw.elapsed_ms() / 1000) / 60;
+                    update_mins = true;
+                }
+
+                print!("{}[2K\r", 27 as char);
+                print!(
+                    "Time Elapsed: {}:{}:{}\r",
+                    ((sw.elapsed_ms() / 1000) / 60) / 60,
+                    (sw.elapsed_ms() / 1000) / 60 - prev_mins,
+                    (sw.elapsed_ms() / 1000) - prev_secs
+                );
+                io::stdout().flush().expect("could not flush output stream");
+
+                if ((sw.elapsed_ms() / 1000) / 60) - prev_mins >= 60 {
+                    update_mins = false;
+                }
+            } else {
+                print!("{}[2K\r", 27 as char);
+                print!(
+                    "Time Elapsed: 00:{}:{}\r",
+                    (sw.elapsed_ms() / 1000) / 60,
+                    (sw.elapsed_ms() / 1000) - prev_secs
+                );
+                io::stdout().flush().expect("could not flush output stream");
+            }
+
+            if (sw.elapsed_ms() / 1000) - prev_secs >= 60 {
+                update_secs = false;
+            }
+        } else {
+            print!("{}[2K\r", 27 as char);
+            print!("Time Elapsed: 00:00:{}\r", sw.elapsed_ms() / 1000);
+            io::stdout().flush().expect("could not flush output stream");
+        }
+
         if !check_for_process(process_name) {
             // Stops the stopwatch
             sw.stop();
 
-            println!("~~~ Record Hours: START ~~~\n");
+            println!("\n~~~ Record Hours: START ~~~\n");
 
             // Stores the seconds elapsed as u64
             let seconds: u64 = sw.elapsed_ms() as u64 / 1000;
@@ -227,7 +292,7 @@ fn record_hours(process_name: &str) {
                         eprintln!("error writing to hours.txt: {e}");
                         process::exit(1);
                     });
-            println!("\n~~~ Record Hours: FINISHED ~~~\n")
+                println!("\n~~~ Record Hours: FINISHED ~~~\n")
             } else {
                 break;
             }
@@ -246,7 +311,7 @@ fn record_hours(process_name: &str) {
 ///
 /// # Errors
 /// Returns an [`io::Error`] if there were any issues with file operations.
-pub fn update_past_two() -> Result<bool, io::Error> {
+pub fn update_past_two() -> IoResult<bool> {
     // Open the 'hours.txt' file in read mode
     let hours_file_result = File::open("C:\\RLHoursFolder\\hours.txt");
 
@@ -625,12 +690,12 @@ fn return_new_hours(contents: &String, seconds: &u64, hours: &f32, past_two: &f3
 /// # Errors
 /// This function returns an [`io::Error`] if any file operations failed.
 pub fn write_to_hours(
-    hours_result: Result<File, io::Error>,
+    hours_result: IoResult<File>,
     seconds: &u64,
     hours: &f32,
     hours_past_two: &f32,
     sw: &Stopwatch,
-) -> Result<(), io::Error> {
+) -> IoResult<()> {
     // Checks if the file exists, then stores the File into the mutable 'file' variable
     if let Ok(mut file) = hours_result {
         // Mutable variable to store file contents as a String
@@ -700,7 +765,7 @@ pub fn write_to_hours(
 ///
 /// # Errors
 /// Returns an [`io::Error`] if there were any file operations which failed.
-pub fn write_to_date(date_result: Result<File, io::Error>, seconds: &u64) -> Result<(), io::Error> {
+pub fn write_to_date(date_result: IoResult<File>, seconds: &u64) -> IoResult<()> {
     // Checks if the date file exists, then handles file operations
     if let Ok(_) = date_result {
         // Opens the date file in append mode

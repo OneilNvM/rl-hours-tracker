@@ -8,6 +8,7 @@ use std::{
 };
 use tokio::runtime::Runtime;
 use webbrowser;
+use crate::IoResult;
 
 /// The Github repository and the `Url` to the files in the repository.
 #[derive(Debug, Clone)]
@@ -17,7 +18,7 @@ pub struct Github<'a> {
     branch: &'a str,
     path: &'a str,
     file: &'a str,
-    pub url: String,
+    url: String,
 }
 
 impl<'a> Github<'a> {
@@ -37,6 +38,11 @@ impl<'a> Github<'a> {
             file,
             url: String::new(),
         }
+    }
+
+    /// Gets the built url of the GitHub instance.
+    pub fn get_url(&self) -> String {
+        self.url.clone()
     }
 
     /// Builds the `Url` for the raw contents of a file.
@@ -83,8 +89,8 @@ impl<'a> Github<'a> {
 /// This stores the file and image responses from the `GET` requests to GitHub
 #[derive(Debug, Clone)]
 pub struct GHResponse {
-    pub raw_url: Vec<String>,
-    pub image_url: Vec<Bytes>,
+    raw_url: Vec<String>,
+    image_url: Vec<Bytes>,
 }
 
 impl GHResponse {
@@ -204,7 +210,7 @@ pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> GHResponse
 ///
 /// # Errors
 /// Returns an [`io::Error`] if there were any file operations which failed
-pub fn generate_website_files(boolean: bool) -> Result<(), io::Error> {
+pub fn generate_website_files(boolean: bool) -> IoResult<()> {
     // Create Github instances for the website files
     let mut github_main_css = Github::new(
         "OneilNvM",
@@ -282,7 +288,7 @@ pub fn generate_website_files(boolean: bool) -> Result<(), io::Error> {
     create_website_files(&mut raw_iter, boolean)
 }
 
-fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> Result<(), io::Error> {
+fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> IoResult<()> {
     // Create and open files
     let index = File::create("C:\\RLHoursFolder\\website\\pages\\index.html");
     let main_styles = File::create("C:\\RLHoursFolder\\website\\css\\main.css");
@@ -376,9 +382,9 @@ fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> Resul
 /// # Errors
 /// This function returns an [`io::Error`] if there were any errors during file operations.
 fn generate_page(
-    hours_file: &mut Result<File, io::Error>,
-    date_file: &mut Result<File, io::Error>,
-) -> Result<String, io::Error> {
+    hours_file: &mut IoResult<File>,
+    date_file: &mut IoResult<File>,
+) -> IoResult<String> {
     let mut page = HtmlPage::new()
     .with_title("Rocket League Hours Tracker")
     .with_meta(vec![("charset", "UTF-8")])

@@ -12,7 +12,7 @@ fn t_builds_raw_url() {
 
     instance.build_url();
 
-    assert_eq!(instance.url, String::from("https://raw.githubusercontent.com/OneilNvM/rl-hours-tracker/refs/heads/master/website/js/animations.js"));
+    assert_eq!(instance.get_url(), String::from("https://raw.githubusercontent.com/OneilNvM/rl-hours-tracker/refs/heads/master/website/js/animations.js"));
 }
 
 #[test]
@@ -27,7 +27,7 @@ fn t_builds_image_url() {
 
     instance.build_image_url();
 
-    assert_eq!(instance.url, String::from("https://github.com/OneilNvM/rl-hours-tracker/blob/master/website/images/rl-icon-black.png"));
+    assert_eq!(instance.get_url(), String::from("https://github.com/OneilNvM/rl-hours-tracker/blob/master/website/images/rl-icon-black.png"));
 }
 
 #[tokio::test]
@@ -41,7 +41,7 @@ async fn t_sends_request() -> Result<(), reqwest::Error> {
     );
     instance.build_url();
 
-    let response = send_request(&instance.url).await;
+    let response = send_request(&instance.get_url()).await;
 
     let text = response.text().await?;
 
@@ -56,7 +56,7 @@ async fn t_handle_raw_response() {
 
     instance.build_url();
 
-    let response = send_request(&instance.url).await;
+    let response = send_request(&instance.get_url()).await;
 
     let text = response.text().await;
 
@@ -75,7 +75,7 @@ async fn t_handle_image_response() {
 
     instance.build_image_url();
 
-    let response = send_request(&instance.url).await;
+    let response = send_request(&instance.get_url()).await;
 
     let text = response.bytes().await;
 
