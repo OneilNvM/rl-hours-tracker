@@ -46,7 +46,6 @@ use std::{
     io::{self, Read, Write},
     process, thread,
     time::Duration,
-
 };
 use stopwatch::Stopwatch;
 use sysinfo::System;
