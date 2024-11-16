@@ -1,14 +1,17 @@
 //! This module contains the functionality to generate the Html, CSS, and JavaScript for the
 //! Rocket League Hours Tracker website.
+use crate::IoResult;
 use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlElement, HtmlPage, HtmlTag};
 use bytes::Bytes;
 use reqwest::{Client, Response};
 use std::{
-    fs::{write, File}, io::{self, Error, ErrorKind, Read, Write}, process, slice::Iter
+    fs::{write, File},
+    io::{self, Error, ErrorKind, Read, Write},
+    process,
+    slice::Iter,
 };
 use tokio::runtime::Runtime;
 use webbrowser;
-use crate::IoResult;
 
 /// The Github repository and the `Url` to the files in the repository.
 #[derive(Debug, Clone)]
@@ -197,11 +200,8 @@ pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> GHResponse
     let result1 = rt.block_on(handle_response(urls1));
     let result2 = rt.block_on(handle_image_response(urls2));
 
-    // Construct a new GHResponse instance with the raw_url and image_url Vectors
-    let github_response = GHResponse::new(result1, result2);
-
     // Return the GHResponse instance
-    github_response
+    GHResponse::new(result1, result2)
 }
 
 /// This function is used to generate the necessary files for the Rocket League Hours Tracker website.
@@ -336,42 +336,38 @@ fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> IoRes
     // Creates the index.html file
     match index {
         Ok(mut idx_file) => {
-            // Declare uninitialized 'contents' string variable to store the Html for the website
-            let contents: String;
-
             // Generate the website and handle any errors
-            match generate_page(&mut hours_file, &mut date_file) {
+            let contents: String = match generate_page(&mut hours_file, &mut date_file) {
                 Ok(page) => {
                     // Initialize the 'contents' variable with the Html
-                    contents = page.replace("<body>", "<body class=\"body adaptive\">");
+                    page.replace("<body>", "<body class=\"body adaptive\">")
                 }
                 Err(e) => return Err(e),
-            }
+            };
 
             // Writes the index.html file
-            match idx_file.write_all(&contents.as_bytes()) {
+            match idx_file.write_all(contents.as_bytes()) {
                 Ok(_) => {
                     // If statement determines whether to prompt the user with the option to open the website
-                    if boolean == true {
+                    if boolean {
                         let mut option = String::new();
 
                         println!("Open hours website in browser (y/n)?");
                         io::stdin().read_line(&mut option).unwrap();
 
-                        if option.trim() == "y" || option.trim() == "Y" {
-                            if webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html")
+                        if option.trim().to_lowercase() == "y"
+                            && webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html")
                                 .is_ok()
-                            {
-                                println!("OK\n");
-                            };
+                        {
+                            println!("OK\n");
                         }
                     }
                     Ok(())
                 }
-                Err(e) => return Err(e),
+                Err(e) => Err(e),
             }
         }
-        Err(e) => return Err(e),
+        Err(e) => Err(e),
     }
 }
 
@@ -407,9 +403,7 @@ fn generate_page(
     let mut date_content = String::new();
 
     if let Ok(ref mut hrs_file) = hours_file {
-        if let Ok(_) = hrs_file.read_to_string(&mut hrs_content) {
-            ();
-        } else {
+        if hrs_file.read_to_string(&mut hrs_content).is_err() {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 "The files contents are not valid UTF-8.",
@@ -420,9 +414,7 @@ fn generate_page(
     }
 
     if let Ok(ref mut dt_file) = date_file {
-        if let Ok(_) = dt_file.read_to_string(&mut date_content) {
-            ();
-        } else {
+        if dt_file.read_to_string(&mut date_content).is_err() {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 "The files contents are not valid UTF-8.",
