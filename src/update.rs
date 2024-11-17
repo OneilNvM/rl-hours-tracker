@@ -84,7 +84,7 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
 ///
 /// # Errors
 /// This function returns file operation errors or a [`reqwest::Error`].
-pub async fn update(ver_num: &String) -> Result<(), Box<dyn Error>> {
+pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
     // Create a new Client instance
     let client = Client::new();
 

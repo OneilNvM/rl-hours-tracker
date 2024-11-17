@@ -14,13 +14,21 @@
 
 //! ## Library
 //! The Rocket League Hours Tracker library contains modules which provide additional
-//! functionality to the Rocket League Hours Tracker binary. This library is currently
+//! functionality to the Rocket League Hours Tracker binary. This library currently
 //! implements the [`website_files`] module, which provides the functionality to generate
-//! the Html, CSS, and JavaScript for the Rocket League Hours Tracker website.
+//! the Html, CSS, and JavaScript for the Rocket League Hours Tracker website, and the [`update`]
+//! module, which is the built in updater for the binary which retrieves the update from the GitHub
+//! repository.
 //!
 //! The website functionality takes adavantage of the [`build_html`] library, which allows us
 //! to generate the Html for the website, alongside the [`webbrowser`] library, which allows us
 //! to open the website in a browser.
+//! 
+//! The update module only operates when using the installed version of the program which can be found in the
+//! [releases](https://github.com/OneilNvM/rl-hours-tracker/releases) section on the GitHub repository. This
+//! module uses the [`reqwest`] crate to make HTTP requests to the rl-hours-tracker repository in order to retrieve
+//! the new update from the releases section. This module has the functionality to check for any new updates, update
+//! the program, and clean up any additional files made during the update.
 //!
 //! ### Use Case
 //! Within the [`website_files`] module, there is a public function [`website_files::generate_website_files`],
@@ -38,6 +46,38 @@
 //! // This will also generate the website but will not prompt the user to open the website
 //! // in a browser.
 //! website_files::generate_website_files(false);
+//! ```
+//! 
+//! The [`update`] module has two public asynchronous functions available: [`update::check_for_update`] and [`update::update`].
+//! The [`update::check_for_update`] function is responsible for sending a HTTP request to the repository and checking the version
+//! number of the latest release, and comparing it to the current version of the program. The [`update::update`] function is responsible
+//! updating the program by sending a HTTP request to the repository to retrieve the update zip from the latest release, and unzipping the
+//! zip files contents to replace the old program files with the newest version.
+//! 
+//! ```
+//! use rl_hours_tracker::update;
+//! use tokio::runtime::Runtime;
+//! 
+//! // This creates a tokio runtime instance for running our function
+//! let rt = Runtime::new().unwrap();
+//! 
+//! // This runs our asynchronous function which checks for an update
+//! rt.block_on(update::check_for_update())?;
+//! ```
+//! 
+//! The [`update::check_for_update`] function does use the [`update::update`] function when it finds that there is a new release on the GitHub, however
+//! the update function can be used by itself in a different context if needed.
+//! 
+//! ```
+//! use rl_hours_tracker::update;
+//! use tokio::runtime::Runtime;
+//! 
+//! // This creates a tokio runtime instance for running our function
+//! let rt = Runtime::new().unwrap();
+//! 
+//! // This runs our asynchronous function which updates the program
+//! rt.block_on(update::update())?;
+//! ```
 use chrono::{prelude::*, Duration as CDuration};
 use std::{
     error::Error,
@@ -56,6 +96,7 @@ mod tests;
 pub mod update;
 pub mod website_files;
 
+/// Type alias for Results which only return [`std::io::Error`] as its error variant.
 pub type IoResult<T> = Result<T, io::Error>;
 
 /// Custom error for [`calculate_past_two`] function
@@ -102,7 +143,6 @@ pub fn run() {
 ///
 /// # Errors
 /// This function stores an [`io::Error`] in the output Vector if there was any issue creating a folder.
-
 pub fn create_directory() -> Vec<IoResult<()>> {
     // Create the folder directories for the program
     let folder = fs::create_dir("C:\\RLHoursFolder");
@@ -197,8 +237,13 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
 fn record_hours(process_name: &str) {
     // Start the stopwatch
     let mut sw = Stopwatch::start_new();
+    
+    // Variables are used to update the `prev` variables when needed
     let mut update_secs = false;
     let mut update_mins = false;
+
+    // Variables are used to store the previous seconds and minutes to accurately display
+    // the live stopwatch
     let mut prev_secs = 0;
     let mut prev_mins = 0;
 
@@ -206,46 +251,70 @@ fn record_hours(process_name: &str) {
 
     // Loop checks for when the process has ended
     loop {
+        // This control flow is used for displaying the live stopwatch
+        // whilst Rocket League is running.
+        // The loop runs on a 1 second sleep at every iteration, which allows
+        // for the live stopwatch to update, displaying the current time elapsed.
+        // Calculations for seconds, minutes, and hours take place in order to
+        // make sure the time is formatted properly.
+
+        // Handles output for seconds
+        // Check if current seconds are greater than or equal to 1 minute
         if (sw.elapsed_ms() / 1000) >= 60 {
+            // Checks if the prev_secs variable should be updated.
             if !update_secs {
                 prev_secs = sw.elapsed_ms() / 1000;
                 update_secs = true;
             }
 
+            // Handles output for hours, and minutes
+            // Checks if current minutes are greater than or equal to 1 hour
             if (sw.elapsed_ms() / 1000) / 60 >= 60 {
+                // Checks if prev_mins variable should be updated
                 if !update_mins {
                     prev_mins = (sw.elapsed_ms() / 1000) / 60;
                     update_mins = true;
                 }
 
+                // Clear the current line and carriage return
                 print!("{}[2K\r", 27 as char);
+                // Print the output for hours, minutes, and seconds
                 print!(
                     "Time Elapsed: {}:{}:{}\r",
                     ((sw.elapsed_ms() / 1000) / 60) / 60,
                     (sw.elapsed_ms() / 1000) / 60 - prev_mins,
                     (sw.elapsed_ms() / 1000) - prev_secs
                 );
+                // Flush the output
                 io::stdout().flush().expect("could not flush output stream");
 
+                // Checks if current displayed minutes is greater than or equal to an hour
                 if ((sw.elapsed_ms() / 1000) / 60) - prev_mins >= 60 {
                     update_mins = false;
                 }
             } else {
+                // Clear the current line and carriage return
                 print!("{}[2K\r", 27 as char);
+                // Print the output for minutes and seconds
                 print!(
                     "Time Elapsed: 00:{}:{}\r",
                     (sw.elapsed_ms() / 1000) / 60,
                     (sw.elapsed_ms() / 1000) - prev_secs
                 );
+                // Flush the output
                 io::stdout().flush().expect("could not flush output stream");
             }
 
+            // Checks if the current displayed seconds is greater than or equal to 1 minute
             if (sw.elapsed_ms() / 1000) - prev_secs >= 60 {
                 update_secs = false;
             }
         } else {
+            // Clear the current line and carriage return
             print!("{}[2K\r", 27 as char);
+            // Print the output for seconds
             print!("Time Elapsed: 00:00:{}\r", sw.elapsed_ms() / 1000);
+            // Flush the output
             io::stdout().flush().expect("could not flush output stream");
         }
 
@@ -458,7 +527,7 @@ pub fn closest_date(split_newline: &[&str]) -> usize {
 /// This function is used to perform a binary search on a [`Vec<&str>`] Vector and compares the dates in the Vector with
 /// the `c_date` [`String`]. The function then returns a [`prim@usize`] for the index of the date, or a [`usize::MAX`] if the
 /// date is not present.
-pub fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
+fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
     // Initialize mutable variable 'high' with last index of Vector
     let mut high = split_newline.len() - 1;
     // Initialize mutable variable 'low' to 0
@@ -683,7 +752,7 @@ fn return_new_hours(contents: &str, seconds: &u64, hours: &f32, past_two: &f32) 
 ///
 /// # Errors
 /// This function returns an [`io::Error`] if any file operations failed.
-pub fn write_to_hours(
+fn write_to_hours(
     hours_result: IoResult<File>,
     seconds: &u64,
     hours: &f32,
@@ -759,7 +828,7 @@ pub fn write_to_hours(
 ///
 /// # Errors
 /// Returns an [`io::Error`] if there were any file operations which failed.
-pub fn write_to_date(date_result: IoResult<File>, seconds: &u64) -> IoResult<()> {
+fn write_to_date(date_result: IoResult<File>, seconds: &u64) -> IoResult<()> {
     // Checks if the date file exists, then handles file operations
     if date_result.is_ok() {
         // Opens the date file in append mode
