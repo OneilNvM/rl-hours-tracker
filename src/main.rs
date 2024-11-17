@@ -1,5 +1,5 @@
-use std::{env, io::ErrorKind};
 use std::process;
+use std::{env, io::ErrorKind};
 
 use rl_hours_tracker::{create_directory, run, run_self_update, update_past_two};
 
@@ -19,7 +19,7 @@ fn main() {
     );
 
     // Checks if the program is being run from the AppData directory.
-    // This is done to make sure that anyone installing the binary through 
+    // This is done to make sure that anyone installing the binary through
     // cargo does not run the self update functionality, as they can update
     // the binary through cargo.
     if let Ok(path) = env::current_dir() {
