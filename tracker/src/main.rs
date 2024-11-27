@@ -1,7 +1,7 @@
 use std::process;
 use std::{env, io::ErrorKind};
 
-use rl_hours_tracker::{create_directory, run, run_self_update, update_past_two};
+use rl_hours_tracker_lib::{create_directory, run, run_self_update, update_past_two};
 
 fn main() {
     println!(
