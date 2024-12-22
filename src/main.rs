@@ -34,7 +34,7 @@ fn main() {
     let folders_result = create_directory();
 
     // Handles the successful result from the 'create_directory' function or panics if any errors occurred
-    if folders_result.len() != 0 {
+    if !folders_result.is_empty() {
         for folder in folders_result {
             folder.unwrap_or_else(|e| {
                 if e.kind() != ErrorKind::AlreadyExists {

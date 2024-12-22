@@ -23,7 +23,7 @@
 //! The website functionality takes adavantage of the [`build_html`] library, which allows us
 //! to generate the Html for the website, alongside the [`webbrowser`] library, which allows us
 //! to open the website in a browser.
-//! 
+//!
 //! The update module only operates when using the installed version of the program which can be found in the
 //! [releases](https://github.com/OneilNvM/rl-hours-tracker/releases) section on the GitHub repository. This
 //! module uses the [`reqwest`] crate to make HTTP requests to the rl-hours-tracker repository in order to retrieve
@@ -47,34 +47,34 @@
 //! // in a browser.
 //! website_files::generate_website_files(false);
 //! ```
-//! 
+//!
 //! The [`update`] module has two public asynchronous functions available: [`update::check_for_update`] and [`update::update`].
 //! The [`update::check_for_update`] function is responsible for sending a HTTP request to the repository and checking the version
 //! number of the latest release, and comparing it to the current version of the program. The [`update::update`] function is responsible
 //! updating the program by sending a HTTP request to the repository to retrieve the update zip from the latest release, and unzipping the
 //! zip files contents to replace the old program files with the newest version.
-//! 
+//!
 //! ```
 //! use rl_hours_tracker::update;
 //! use tokio::runtime::Runtime;
-//! 
+//!
 //! // This creates a tokio runtime instance for running our function
 //! let rt = Runtime::new().unwrap();
-//! 
+//!
 //! // This runs our asynchronous function which checks for an update
 //! rt.block_on(update::check_for_update())?;
 //! ```
-//! 
+//!
 //! The [`update::check_for_update`] function does use the [`update::update`] function when it finds that there is a new release on the GitHub, however
 //! the update function can be used by itself in a different context if needed.
-//! 
+//!
 //! ```
 //! use rl_hours_tracker::update;
 //! use tokio::runtime::Runtime;
-//! 
+//!
 //! // This creates a tokio runtime instance for running our function
 //! let rt = Runtime::new().unwrap();
-//! 
+//!
 //! // This runs our asynchronous function which updates the program
 //! rt.block_on(update::update())?;
 //! ```
@@ -237,7 +237,7 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
 fn record_hours(process_name: &str) {
     // Start the stopwatch
     let mut sw = Stopwatch::start_new();
-    
+
     // Variables are used to update the `prev` variables when needed
     let mut update_secs = false;
     let mut update_mins = false;
@@ -498,9 +498,9 @@ fn retrieve_time(contents: &str) -> (u64, f32) {
     (old_seconds, old_hours)
 }
 
-/// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`prim@usize`] as an index of the closest
+/// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`Some`] with the index of the closest
 /// after the date two weeks ago.
-pub fn closest_date(split_newline: &[&str]) -> usize {
+pub fn closest_date(split_newline: &[&str]) -> Option<usize> {
     // Store the local date today
     let today = Local::now().date_naive();
     // Store the date two weeks ago
@@ -512,30 +512,28 @@ pub fn closest_date(split_newline: &[&str]) -> usize {
         let idx = date_binary_search(split_newline, &current_date.to_string());
 
         // Returns the index of the closest date if value is not usize::MAX
-        if idx != usize::MAX {
-            return idx;
+        if let Some(index) = idx {
+            return Some(index);
         }
 
         // Increments the date
         current_date += CDuration::days(1);
     }
 
-    // Return usize::MAX if there are any issues
-    usize::MAX
+    // Return None if the date is not found
+    None
 }
 
 /// This function is used to perform a binary search on a [`Vec<&str>`] Vector and compares the dates in the Vector with
-/// the `c_date` [`String`]. The function then returns a [`prim@usize`] for the index of the date, or a [`usize::MAX`] if the
+/// the `c_date` [`String`]. The function then returns a [`Some`] with the index of the date, or a [`None`] if the
 /// date is not present.
-fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
-    // Initialize mutable variable 'high' with last index of Vector
+pub fn date_binary_search(split_newline: &[&str], c_date: &String) -> Option<usize> {
+    // Initialize mutable variables
     let mut high = split_newline.len() - 1;
-    // Initialize mutable variable 'low' to 0
     let mut low = 0;
-    // Initialize mutable variable 'result' to 0
     let mut result = 0;
-    // Initialize mutable variable 'is_zero' to true
-    let mut is_zero = true;
+    let mut check_dups = false;
+    let mut not_found = true;
 
     // While loop performs binary search of the date in the Vector
     // Loop is broken if the index of the date is found
@@ -550,13 +548,14 @@ fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
         // the date two weeks ago
         if s_mid[0] == c_date {
             result = mid;
-            is_zero = false;
+            not_found = false;
+            check_dups = true;
             break;
         } else if *s_mid[0] < **c_date {
             low = mid + 1;
         } else {
             if mid == 0 {
-                break;
+                return None
             }
             high = mid - 1;
         }
@@ -564,16 +563,17 @@ fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
 
     // While loop checks for any duplicates of the date two weeks ago in order to include them in the new Vector
     // This loop only runs if the date is found in the Vector
-    while !is_zero {
+    while check_dups {
         // Date Vector for current iteration
         let date_vec: Vec<&str> = split_newline[result].split_whitespace().collect();
         // Date string reference for the current iteration
         let date_str = date_vec[0];
 
-        // Check if result is equal to zero and if the date is equal to the date two weeks ago
-        // Return index if true
-        if result == 0 && date_str == c_date {
-            return result;
+        // Check if result is equal to zero
+        // End loop if true
+        if result == 0 {
+            check_dups = false;
+            continue;
         }
 
         // Set the ptr to current iteration - 1
@@ -587,14 +587,18 @@ fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
         // Return the index if true
         // Set the current iteration to the pointer if false
         if date_str != prev_date_str {
-            return result;
+            return Some(result);
         } else {
             result = ptr;
         }
     }
 
-    // Return usize::MAX if the date is not found
-    usize::MAX
+    // Return None if the date is not found
+    if not_found {
+        None
+    } else {
+        Some(result)
+    }
 }
 
 /// This function calculates the hours recorded in the past two weeks and returns the total number of seconds as [`prim@u64`]
@@ -652,22 +656,26 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
                     // Assign value from date_binary_search to variable
                     let date_idx = date_binary_search(&split_newline, &cur_date.to_string());
 
-                    // Checks if the index returned from date_binary_search is usize::MAX
+                    // Checks the value returned from date_binary_search
                     // Either sets the split_line_copy variable to a string reference slice of the Vector, with the first element
                     // as the first occurrence of the date two weeks ago
                     // Or, sets it to the closest date after the date two weeks ago
-                    if date_idx != usize::MAX {
-                        println!("Date found...");
-                        split_line_copy = &split_newline[date_idx..];
-                    } else {
-                        println!("Date not found. Searching for closest date...");
-                        let closest = closest_date(&split_newline);
-
-                        if closest != usize::MAX {
+                    match date_idx {
+                        Some(index) => {
                             println!("Date found...");
-                            split_line_copy = &split_newline[closest..];
-                        } else {
-                            return Err(PastTwoError.into());
+                            split_line_copy = &split_newline[index..];
+                        }
+                        None => {
+                            println!("Date not found. Searching for closest date...");
+                            let closest = closest_date(&split_newline);
+
+                            match closest {
+                                Some(index) => {
+                                    println!("Date found...");
+                                    split_line_copy = &split_newline[index..];
+                                }
+                                None => return Err(PastTwoError.into()),
+                            }
                         }
                     }
 

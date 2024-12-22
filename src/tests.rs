@@ -1,4 +1,4 @@
-use crate::website_files::*;
+use crate::{date_binary_search, website_files::*};
 
 #[test]
 fn t_builds_raw_url() {
@@ -80,4 +80,28 @@ async fn t_handle_image_response() {
     let text = response.bytes().await;
 
     assert!(text.is_ok())
+}
+
+#[test]
+fn t_date_binary_search() {
+    let split_newline: Vec<&str> = vec![
+        "2024-09-15 58s",
+        "2024-09-15 890s",
+        "2024-09-16 2890s",
+        "2024-09-16 1589s",
+        "2024-09-16 16024s",
+        "2024-09-17 7895s",
+        "2024-09-19 24536s",
+        "2024-09-20 203s",
+        "2024-09-23 5478s",
+        "2024-09-24 15247s",
+        "2024-09-25 9134s",
+        "2024-09-26 5724s",
+        "2024-09-28 6751s",
+        "2024-09-29 621s",
+    ];
+
+    let result = date_binary_search(&split_newline, &"2024-09-15".to_string());
+
+    assert!(result.is_some());
 }
