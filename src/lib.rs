@@ -379,7 +379,7 @@ fn record_hours(process_name: &str) {
 ///
 /// # Errors
 /// Returns an [`io::Error`] if there were any issues with file operations.
-pub fn update_past_two() -> IoResult<bool> {
+pub fn update_past_two() -> Result<bool, Box<dyn Error>> {
     // Open the 'hours.txt' file in read mode
     let hours_file_result = File::open("C:\\RLHoursFolder\\hours.txt");
 
@@ -410,7 +410,7 @@ pub fn update_past_two() -> IoResult<bool> {
             match file.read_to_string(&mut hours_file_str) {
                 Ok(_) => {
                     // Deconstruct the seconds and hours tuple returned by the retrieve_time function
-                    let (seconds, hours) = retrieve_time(&hours_file_str);
+                    let (seconds, hours) = retrieve_time(&hours_file_str)?;
 
                     // Creates or truncates the 'hours.txt' file and opens it in write mode
                     let write_hours_result = File::create("C:\\RLHoursFolder\\hours.txt");
@@ -436,25 +436,25 @@ pub fn update_past_two() -> IoResult<bool> {
                                     Ok(true)
                                 }
                                 // Returns an error if there was an issue when writing to the file
-                                Err(e) => Err(e),
+                                Err(e) => Err(Box::new(e)),
                             }
                         }
                         // Returns an error if there was an issue creating the file
-                        Err(e) => Err(e),
+                        Err(e) => Err(Box::new(e)),
                     }
                 }
                 // Returns an error if there was an issue reading the file
-                Err(e) => Err(e),
+                Err(e) => Err(Box::new(e)),
             }
         }
         // Returns an error if there was an issue opening the file
-        Err(e) => Err(e),
+        Err(e) => Err(Box::new(e)),
     }
 }
 
 /// This function takes the `contents: &String` parameter which contains the contents from the `hours.txt` file
 /// and returns a tuple of `(u64, f32)` which contains the seconds and hours from the file.
-fn retrieve_time(contents: &str) -> (u64, f32) {
+fn retrieve_time(contents: &str) -> Result<(u64, f32), Box<dyn Error>> {
     // Split the contents string down until we have the characters we want from the string
     // Specifically, we want the seconds and hours numbers from the file
     // First split the contents by newline character
@@ -491,11 +491,11 @@ fn retrieve_time(contents: &str) -> (u64, f32) {
     let hours_str: String = hrs_vec.iter().collect();
 
     // Parse the seconds string as u64 and hours string as f32
-    let old_seconds: u64 = seconds_str.parse().unwrap();
-    let old_hours: f32 = hours_str.parse().unwrap();
+    let old_seconds: u64 = seconds_str.parse()?;
+    let old_hours: f32 = hours_str.parse()?;
 
     // Return a tuple of the old seconds and old hours
-    (old_seconds, old_hours)
+    Ok((old_seconds, old_hours))
 }
 
 /// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`Some`] with the index of the closest
@@ -736,10 +736,10 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
 
 /// This function constructs a new [`String`] which will have the contents to write to `hours.txt` with new hours and seconds
 /// and returns it.
-fn return_new_hours(contents: &str, seconds: &u64, hours: &f32, past_two: &f32) -> String {
+fn return_new_hours(contents: &str, seconds: &u64, hours: &f32, past_two: &f32) -> Result<String, Box<dyn Error>> {
     println!("Getting old hours...");
     // Retrieves the old time and seconds from the contents String
-    let time = retrieve_time(contents);
+    let time = retrieve_time(contents)?;
 
     // Deconstruct the seconds and hours from the tuple
     let (old_seconds, old_hours) = time;
@@ -749,10 +749,10 @@ fn return_new_hours(contents: &str, seconds: &u64, hours: &f32, past_two: &f32) 
     let added_hours = old_hours + *hours;
 
     // Return the new string of the file contents to be written to the file
-    format!(
+    Ok(format!(
         "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}hrs\nHours Past Two Weeks: {:.1}hrs\n",
         added_seconds, added_hours, past_two
-    )
+    ))
 }
 
 /// This function writes the new contents to the `hours.txt` file. This includes the total `seconds`, `hours`, and `hours_past_two`.
@@ -766,7 +766,7 @@ fn write_to_hours(
     hours: &f32,
     hours_past_two: &f32,
     sw: &Stopwatch,
-) -> IoResult<()> {
+) -> Result<(), Box<dyn Error>> {
     // Checks if the file exists, then stores the File into the mutable 'file' variable
     if let Ok(mut file) = hours_result {
         // Mutable variable to store file contents as a String
@@ -776,7 +776,7 @@ fn write_to_hours(
         match file.read_to_string(&mut contents) {
             Ok(_) => {
                 // Stores the new contents for the file as a String
-                let rl_hours_str = return_new_hours(&contents, seconds, hours, hours_past_two);
+                let rl_hours_str = return_new_hours(&contents, seconds, hours, hours_past_two)?;
 
                 // Opens the file in write mode
                 let truncated_file = File::create("C:\\RLHoursFolder\\hours.txt");
@@ -792,15 +792,15 @@ fn write_to_hours(
                                 Ok(())
                             }
                             // Returns an error if there was an issue writing to the file
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(e)),
                         }
                     }
                     // Returns an error if there was an issue creating the file
-                    Err(e) => Err(e),
+                    Err(e) => Err(Box::new(e)),
                 }
             }
             // Returns an error if there was an issue reading the file
-            Err(e) => Err(e),
+            Err(e) => Err(Box::new(e)),
         }
     } else {
         // Checks if the file was created successfully, then stores the File in the mutable 'file' variable
@@ -821,11 +821,11 @@ fn write_to_hours(
                         Ok(())
                     }
                     // Returns an error if there was any kind of issue during writing process
-                    Err(e) => Err(e),
+                    Err(e) => Err(Box::new(e)),
                 }
             }
             // Returns an error if there was an issue when attempting to create the file
-            Err(e) => Err(e),
+            Err(e) => Err(Box::new(e)),
         }
     }
 }
