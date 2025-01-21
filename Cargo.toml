@@ -11,12 +11,12 @@ description = "A rust binary used for calculating the hours played of Rocket Lea
 
 [dependencies]
 build_html = "2.5.0"
-bytes = "1.7.2"
-chrono = "0.4.38"
-directories = "5.0.1"
-reqwest = "0.12.7"
+bytes = "1.9.0"
+chrono = "0.4.39"
+directories = "6.0.0"
+reqwest = "0.12.12"
 stopwatch = "0.0.7"
-sysinfo = "0.31.2"
-tokio = {version = "1.40.0", features = ["rt-multi-thread", "rt", "macros"]}
-webbrowser = "1.0.1"
-zip = "2.2.0"
+sysinfo = "0.33.1"
+tokio = {version = "1.43.0", features = ["rt-multi-thread", "rt", "macros"]}
+webbrowser = "1.0.3"
+zip = "2.2.2"
