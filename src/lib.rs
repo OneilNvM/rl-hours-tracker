@@ -85,7 +85,7 @@ use std::{
     fs::{self, File},
     io::{self, Read, Write},
     process, thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 use stopwatch::Stopwatch;
 use sysinfo::System;
@@ -238,85 +238,71 @@ fn record_hours(process_name: &str) {
     // Start the stopwatch
     let mut sw = Stopwatch::start_new();
 
-    // Variables are used to update the `prev` variables when needed
-    let mut update_secs = false;
-    let mut update_mins = false;
+    // Create a SystemTime struct with the time set to 995ms in the future
+    // This is done to make the timing for seconds more accurate when sleeping on each iteration
+    // by predicting the time in the future
+    let mut timer = SystemTime::now()
+        .checked_add(Duration::from_millis(995))
+        .unwrap();
 
-    // Variables are used to store the previous seconds and minutes to accurately display
-    // the live stopwatch
-    let mut prev_secs = 0;
-    let mut prev_mins = 0;
+    // Declare mutable variables for seconds, minutes and hours
+    let mut seconds: u8 = 0;
+    let mut minutes: u8 = 0;
+    let mut hours: u32 = 0;
 
     println!("\nRocket League is running\n");
 
     // Loop checks for when the process has ended
     loop {
+        // Set the delay for the for how long the loop sleeps
+        let delay = timer.duration_since(SystemTime::now()).unwrap();
         // This control flow is used for displaying the live stopwatch
         // whilst Rocket League is running.
         // The loop runs on a 1 second sleep at every iteration, which allows
         // for the live stopwatch to update, displaying the current time elapsed.
-        // Calculations for seconds, minutes, and hours take place in order to
-        // make sure the time is formatted properly.
 
-        // Handles output for seconds
         // Check if current seconds are greater than or equal to 1 minute
-        if (sw.elapsed_ms() / 1000) >= 60 {
-            // Checks if the prev_secs variable should be updated.
-            if !update_secs {
-                prev_secs = sw.elapsed_ms() / 1000;
-                update_secs = true;
-            }
+        if seconds == 59 {
+            // Set seconds back to zero and update the minutes by 1
+            seconds = 0;
+            minutes += 1;
 
-            // Handles output for hours, and minutes
             // Checks if current minutes are greater than or equal to 1 hour
-            if (sw.elapsed_ms() / 1000) / 60 >= 60 {
-                // Checks if prev_mins variable should be updated
-                if !update_mins {
-                    prev_mins = (sw.elapsed_ms() / 1000) / 60;
-                    update_mins = true;
-                }
-
-                // Clear the current line and carriage return
-                print!("{}[2K\r", 27 as char);
-                // Print the output for hours, minutes, and seconds
-                print!(
-                    "Time Elapsed: {}:{}:{}\r",
-                    ((sw.elapsed_ms() / 1000) / 60) / 60,
-                    (sw.elapsed_ms() / 1000) / 60 - prev_mins,
-                    (sw.elapsed_ms() / 1000) - prev_secs
-                );
-                // Flush the output
-                io::stdout().flush().expect("could not flush output stream");
-
-                // Checks if current displayed minutes is greater than or equal to an hour
-                if ((sw.elapsed_ms() / 1000) / 60) - prev_mins >= 60 {
-                    update_mins = false;
-                }
-            } else {
-                // Clear the current line and carriage return
-                print!("{}[2K\r", 27 as char);
-                // Print the output for minutes and seconds
-                print!(
-                    "Time Elapsed: 00:{}:{}\r",
-                    (sw.elapsed_ms() / 1000) / 60,
-                    (sw.elapsed_ms() / 1000) - prev_secs
-                );
-                // Flush the output
-                io::stdout().flush().expect("could not flush output stream");
-            }
-
-            // Checks if the current displayed seconds is greater than or equal to 1 minute
-            if (sw.elapsed_ms() / 1000) - prev_secs >= 60 {
-                update_secs = false;
+            if minutes == 60 {
+                // Set minutes back to zero and update hours by 1
+                minutes = 0;
+                hours += 1;
             }
         } else {
-            // Clear the current line and carriage return
-            print!("{}[2K\r", 27 as char);
-            // Print the output for seconds
-            print!("Time Elapsed: 00:00:{}\r", sw.elapsed_ms() / 1000);
-            // Flush the output
-            io::stdout().flush().expect("could not flush output stream");
+            // Increment the seconds by 1
+            seconds += 1;
         }
+        // Clear the current line and carriage return
+        print!("{}[2K\r", 27 as char);
+
+        // Print the output for the timer
+        if hours < 10 && minutes < 10 && seconds < 10 {
+            print!("Time Elapsed: 0{}:0{}:0{}\r", hours, minutes, seconds);
+        } else if hours >= 10 {
+            if minutes < 10 && seconds < 10 {
+                print!("Time Elapsed: {}:0{}:0{}\r", hours, minutes, seconds);
+            } else if minutes < 10 && seconds >= 10 {
+                print!("Time Elapsed: {}:0{}:{}\r", hours, minutes, seconds);
+            } else if minutes >= 10 && seconds < 10 {
+                print!("Time Elapsed: {}:{}:0{}\r", hours, minutes, seconds);
+            } else {
+                print!("Time Elapsed: {}:{}:{}\r", hours, minutes, seconds);
+            }
+        } else if hours < 10 && minutes >= 10 && seconds < 10 {
+            print!("Time Elapsed: 0{}:{}:0{}\r", hours, minutes, seconds);
+        } else if hours < 10 && minutes < 10 && seconds >= 10 {
+            print!("Time Elapsed: 0{}:0{}:{}\r", hours, minutes, seconds);
+        } else {
+            print!("Time Elapsed: 0{}:{}:{}\r", hours, minutes, seconds);
+        }
+
+        // Flush the output
+        io::stdout().flush().expect("could not flush output stream");
 
         if !check_for_process(process_name) {
             // Stops the stopwatch
@@ -367,8 +353,11 @@ fn record_hours(process_name: &str) {
 
             break;
         }
-        // Sleep for 1000ms at the end of every loop
-        thread::sleep(Duration::from_millis(1000));
+        // Sleep for as long as the delay
+        thread::sleep(delay);
+
+        // Update the timer to 995ms in the future
+        timer += Duration::from_millis(995)
     }
 }
 

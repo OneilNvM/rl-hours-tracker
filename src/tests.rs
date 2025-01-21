@@ -1,3 +1,8 @@
+use std::{
+    thread::sleep,
+    time::{Duration, SystemTime},
+};
+
 use crate::{date_binary_search, website_files::*};
 
 #[test]
@@ -80,6 +85,24 @@ async fn t_handle_image_response() {
     let text = response.bytes().await;
 
     assert!(text.is_ok())
+}
+
+#[test]
+fn t_time_test() {
+    let mut timer = SystemTime::now()
+        .checked_add(Duration::from_millis(1000))
+        .unwrap();
+
+    for _i in 0..5 {
+        let delay = timer.duration_since(SystemTime::now()).unwrap();
+
+        println!("Slept for {:?}ms", delay.as_millis());
+        sleep(delay);
+
+        timer += Duration::from_millis(1000);
+    }
+
+    assert!(true)
 }
 
 #[test]
