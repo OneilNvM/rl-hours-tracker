@@ -23,7 +23,7 @@
 //! The website functionality takes adavantage of the [`build_html`] library, which allows us
 //! to generate the Html for the website, alongside the [`webbrowser`] library, which allows us
 //! to open the website in a browser.
-//! 
+//!
 //! The update module only operates when using the installed version of the program which can be found in the
 //! [releases](https://github.com/OneilNvM/rl-hours-tracker/releases) section on the GitHub repository. This
 //! module uses the [`reqwest`] crate to make HTTP requests to the rl-hours-tracker repository in order to retrieve
@@ -47,34 +47,34 @@
 //! // in a browser.
 //! website_files::generate_website_files(false);
 //! ```
-//! 
+//!
 //! The [`update`] module has two public asynchronous functions available: [`update::check_for_update`] and [`update::update`].
 //! The [`update::check_for_update`] function is responsible for sending a HTTP request to the repository and checking the version
 //! number of the latest release, and comparing it to the current version of the program. The [`update::update`] function is responsible
 //! updating the program by sending a HTTP request to the repository to retrieve the update zip from the latest release, and unzipping the
 //! zip files contents to replace the old program files with the newest version.
-//! 
+//!
 //! ```
 //! use rl_hours_tracker::update;
 //! use tokio::runtime::Runtime;
-//! 
+//!
 //! // This creates a tokio runtime instance for running our function
 //! let rt = Runtime::new().unwrap();
-//! 
+//!
 //! // This runs our asynchronous function which checks for an update
 //! rt.block_on(update::check_for_update())?;
 //! ```
-//! 
+//!
 //! The [`update::check_for_update`] function does use the [`update::update`] function when it finds that there is a new release on the GitHub, however
 //! the update function can be used by itself in a different context if needed.
-//! 
+//!
 //! ```
 //! use rl_hours_tracker::update;
 //! use tokio::runtime::Runtime;
-//! 
+//!
 //! // This creates a tokio runtime instance for running our function
 //! let rt = Runtime::new().unwrap();
-//! 
+//!
 //! // This runs our asynchronous function which updates the program
 //! rt.block_on(update::update())?;
 //! ```
@@ -85,7 +85,7 @@ use std::{
     fs::{self, File},
     io::{self, Read, Write},
     process, thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 use stopwatch::Stopwatch;
 use sysinfo::System;
@@ -237,86 +237,72 @@ fn run_main_loop(process_name: &str, is_waiting: &mut bool, option: &mut String)
 fn record_hours(process_name: &str) {
     // Start the stopwatch
     let mut sw = Stopwatch::start_new();
-    
-    // Variables are used to update the `prev` variables when needed
-    let mut update_secs = false;
-    let mut update_mins = false;
 
-    // Variables are used to store the previous seconds and minutes to accurately display
-    // the live stopwatch
-    let mut prev_secs = 0;
-    let mut prev_mins = 0;
+    // Create a SystemTime struct with the time set to 995ms in the future
+    // This is done to make the timing for seconds more accurate when sleeping on each iteration
+    // by predicting the time in the future
+    let mut timer = SystemTime::now()
+        .checked_add(Duration::from_millis(995))
+        .unwrap();
+
+    // Declare mutable variables for seconds, minutes and hours
+    let mut seconds: u8 = 0;
+    let mut minutes: u8 = 0;
+    let mut hours: u32 = 0;
 
     println!("\nRocket League is running\n");
 
     // Loop checks for when the process has ended
     loop {
+        // Set the delay for the for how long the loop sleeps
+        let delay = timer.duration_since(SystemTime::now()).unwrap();
         // This control flow is used for displaying the live stopwatch
         // whilst Rocket League is running.
         // The loop runs on a 1 second sleep at every iteration, which allows
         // for the live stopwatch to update, displaying the current time elapsed.
-        // Calculations for seconds, minutes, and hours take place in order to
-        // make sure the time is formatted properly.
 
-        // Handles output for seconds
         // Check if current seconds are greater than or equal to 1 minute
-        if (sw.elapsed_ms() / 1000) >= 60 {
-            // Checks if the prev_secs variable should be updated.
-            if !update_secs {
-                prev_secs = sw.elapsed_ms() / 1000;
-                update_secs = true;
-            }
+        if seconds == 59 {
+            // Set seconds back to zero and update the minutes by 1
+            seconds = 0;
+            minutes += 1;
 
-            // Handles output for hours, and minutes
             // Checks if current minutes are greater than or equal to 1 hour
-            if (sw.elapsed_ms() / 1000) / 60 >= 60 {
-                // Checks if prev_mins variable should be updated
-                if !update_mins {
-                    prev_mins = (sw.elapsed_ms() / 1000) / 60;
-                    update_mins = true;
-                }
-
-                // Clear the current line and carriage return
-                print!("{}[2K\r", 27 as char);
-                // Print the output for hours, minutes, and seconds
-                print!(
-                    "Time Elapsed: {}:{}:{}\r",
-                    ((sw.elapsed_ms() / 1000) / 60) / 60,
-                    (sw.elapsed_ms() / 1000) / 60 - prev_mins,
-                    (sw.elapsed_ms() / 1000) - prev_secs
-                );
-                // Flush the output
-                io::stdout().flush().expect("could not flush output stream");
-
-                // Checks if current displayed minutes is greater than or equal to an hour
-                if ((sw.elapsed_ms() / 1000) / 60) - prev_mins >= 60 {
-                    update_mins = false;
-                }
-            } else {
-                // Clear the current line and carriage return
-                print!("{}[2K\r", 27 as char);
-                // Print the output for minutes and seconds
-                print!(
-                    "Time Elapsed: 00:{}:{}\r",
-                    (sw.elapsed_ms() / 1000) / 60,
-                    (sw.elapsed_ms() / 1000) - prev_secs
-                );
-                // Flush the output
-                io::stdout().flush().expect("could not flush output stream");
-            }
-
-            // Checks if the current displayed seconds is greater than or equal to 1 minute
-            if (sw.elapsed_ms() / 1000) - prev_secs >= 60 {
-                update_secs = false;
+            if minutes == 60 {
+                // Set minutes back to zero and update hours by 1
+                minutes = 0;
+                hours += 1;
             }
         } else {
-            // Clear the current line and carriage return
-            print!("{}[2K\r", 27 as char);
-            // Print the output for seconds
-            print!("Time Elapsed: 00:00:{}\r", sw.elapsed_ms() / 1000);
-            // Flush the output
-            io::stdout().flush().expect("could not flush output stream");
+            // Increment the seconds by 1
+            seconds += 1;
         }
+        // Clear the current line and carriage return
+        print!("{}[2K\r", 27 as char);
+
+        // Print the output for the timer
+        if hours < 10 && minutes < 10 && seconds < 10 {
+            print!("Time Elapsed: 0{}:0{}:0{}\r", hours, minutes, seconds);
+        } else if hours >= 10 {
+            if minutes < 10 && seconds < 10 {
+                print!("Time Elapsed: {}:0{}:0{}\r", hours, minutes, seconds);
+            } else if minutes < 10 && seconds >= 10 {
+                print!("Time Elapsed: {}:0{}:{}\r", hours, minutes, seconds);
+            } else if minutes >= 10 && seconds < 10 {
+                print!("Time Elapsed: {}:{}:0{}\r", hours, minutes, seconds);
+            } else {
+                print!("Time Elapsed: {}:{}:{}\r", hours, minutes, seconds);
+            }
+        } else if hours < 10 && minutes >= 10 && seconds < 10 {
+            print!("Time Elapsed: 0{}:{}:0{}\r", hours, minutes, seconds);
+        } else if hours < 10 && minutes < 10 && seconds >= 10 {
+            print!("Time Elapsed: 0{}:0{}:{}\r", hours, minutes, seconds);
+        } else {
+            print!("Time Elapsed: 0{}:{}:{}\r", hours, minutes, seconds);
+        }
+
+        // Flush the output
+        io::stdout().flush().expect("could not flush output stream");
 
         if !check_for_process(process_name) {
             // Stops the stopwatch
@@ -367,8 +353,11 @@ fn record_hours(process_name: &str) {
 
             break;
         }
-        // Sleep for 1000ms at the end of every loop
-        thread::sleep(Duration::from_millis(1000));
+        // Sleep for as long as the delay
+        thread::sleep(delay);
+
+        // Update the timer to 995ms in the future
+        timer += Duration::from_millis(995)
     }
 }
 
@@ -379,7 +368,7 @@ fn record_hours(process_name: &str) {
 ///
 /// # Errors
 /// Returns an [`io::Error`] if there were any issues with file operations.
-pub fn update_past_two() -> IoResult<bool> {
+pub fn update_past_two() -> Result<bool, Box<dyn Error>> {
     // Open the 'hours.txt' file in read mode
     let hours_file_result = File::open("C:\\RLHoursFolder\\hours.txt");
 
@@ -410,7 +399,7 @@ pub fn update_past_two() -> IoResult<bool> {
             match file.read_to_string(&mut hours_file_str) {
                 Ok(_) => {
                     // Deconstruct the seconds and hours tuple returned by the retrieve_time function
-                    let (seconds, hours) = retrieve_time(&hours_file_str);
+                    let (seconds, hours) = retrieve_time(&hours_file_str)?;
 
                     // Creates or truncates the 'hours.txt' file and opens it in write mode
                     let write_hours_result = File::create("C:\\RLHoursFolder\\hours.txt");
@@ -436,25 +425,25 @@ pub fn update_past_two() -> IoResult<bool> {
                                     Ok(true)
                                 }
                                 // Returns an error if there was an issue when writing to the file
-                                Err(e) => Err(e),
+                                Err(e) => Err(Box::new(e)),
                             }
                         }
                         // Returns an error if there was an issue creating the file
-                        Err(e) => Err(e),
+                        Err(e) => Err(Box::new(e)),
                     }
                 }
                 // Returns an error if there was an issue reading the file
-                Err(e) => Err(e),
+                Err(e) => Err(Box::new(e)),
             }
         }
         // Returns an error if there was an issue opening the file
-        Err(e) => Err(e),
+        Err(e) => Err(Box::new(e)),
     }
 }
 
 /// This function takes the `contents: &String` parameter which contains the contents from the `hours.txt` file
 /// and returns a tuple of `(u64, f32)` which contains the seconds and hours from the file.
-fn retrieve_time(contents: &str) -> (u64, f32) {
+fn retrieve_time(contents: &str) -> Result<(u64, f32), Box<dyn Error>> {
     // Split the contents string down until we have the characters we want from the string
     // Specifically, we want the seconds and hours numbers from the file
     // First split the contents by newline character
@@ -491,16 +480,16 @@ fn retrieve_time(contents: &str) -> (u64, f32) {
     let hours_str: String = hrs_vec.iter().collect();
 
     // Parse the seconds string as u64 and hours string as f32
-    let old_seconds: u64 = seconds_str.parse().unwrap();
-    let old_hours: f32 = hours_str.parse().unwrap();
+    let old_seconds: u64 = seconds_str.parse()?;
+    let old_hours: f32 = hours_str.parse()?;
 
     // Return a tuple of the old seconds and old hours
-    (old_seconds, old_hours)
+    Ok((old_seconds, old_hours))
 }
 
-/// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`prim@usize`] as an index of the closest
+/// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`Some`] with the index of the closest
 /// after the date two weeks ago.
-pub fn closest_date(split_newline: &[&str]) -> usize {
+pub fn closest_date(split_newline: &[&str]) -> Option<usize> {
     // Store the local date today
     let today = Local::now().date_naive();
     // Store the date two weeks ago
@@ -512,30 +501,28 @@ pub fn closest_date(split_newline: &[&str]) -> usize {
         let idx = date_binary_search(split_newline, &current_date.to_string());
 
         // Returns the index of the closest date if value is not usize::MAX
-        if idx != usize::MAX {
-            return idx;
+        if let Some(index) = idx {
+            return Some(index);
         }
 
         // Increments the date
         current_date += CDuration::days(1);
     }
 
-    // Return usize::MAX if there are any issues
-    usize::MAX
+    // Return None if the date is not found
+    None
 }
 
 /// This function is used to perform a binary search on a [`Vec<&str>`] Vector and compares the dates in the Vector with
-/// the `c_date` [`String`]. The function then returns a [`prim@usize`] for the index of the date, or a [`usize::MAX`] if the
+/// the `c_date` [`String`]. The function then returns a [`Some`] with the index of the date, or a [`None`] if the
 /// date is not present.
-fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
-    // Initialize mutable variable 'high' with last index of Vector
+pub fn date_binary_search(split_newline: &[&str], c_date: &String) -> Option<usize> {
+    // Initialize mutable variables
     let mut high = split_newline.len() - 1;
-    // Initialize mutable variable 'low' to 0
     let mut low = 0;
-    // Initialize mutable variable 'result' to 0
     let mut result = 0;
-    // Initialize mutable variable 'is_zero' to true
-    let mut is_zero = true;
+    let mut check_dups = false;
+    let mut not_found = true;
 
     // While loop performs binary search of the date in the Vector
     // Loop is broken if the index of the date is found
@@ -550,13 +537,14 @@ fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
         // the date two weeks ago
         if s_mid[0] == c_date {
             result = mid;
-            is_zero = false;
+            not_found = false;
+            check_dups = true;
             break;
         } else if *s_mid[0] < **c_date {
             low = mid + 1;
         } else {
             if mid == 0 {
-                break;
+                return None
             }
             high = mid - 1;
         }
@@ -564,16 +552,17 @@ fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
 
     // While loop checks for any duplicates of the date two weeks ago in order to include them in the new Vector
     // This loop only runs if the date is found in the Vector
-    while !is_zero {
+    while check_dups {
         // Date Vector for current iteration
         let date_vec: Vec<&str> = split_newline[result].split_whitespace().collect();
         // Date string reference for the current iteration
         let date_str = date_vec[0];
 
-        // Check if result is equal to zero and if the date is equal to the date two weeks ago
-        // Return index if true
-        if result == 0 && date_str == c_date {
-            return result;
+        // Check if result is equal to zero
+        // End loop if true
+        if result == 0 {
+            check_dups = false;
+            continue;
         }
 
         // Set the ptr to current iteration - 1
@@ -587,14 +576,18 @@ fn date_binary_search(split_newline: &[&str], c_date: &String) -> usize {
         // Return the index if true
         // Set the current iteration to the pointer if false
         if date_str != prev_date_str {
-            return result;
+            return Some(result);
         } else {
             result = ptr;
         }
     }
 
-    // Return usize::MAX if the date is not found
-    usize::MAX
+    // Return None if the date is not found
+    if not_found {
+        None
+    } else {
+        Some(result)
+    }
 }
 
 /// This function calculates the hours recorded in the past two weeks and returns the total number of seconds as [`prim@u64`]
@@ -652,22 +645,26 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
                     // Assign value from date_binary_search to variable
                     let date_idx = date_binary_search(&split_newline, &cur_date.to_string());
 
-                    // Checks if the index returned from date_binary_search is usize::MAX
+                    // Checks the value returned from date_binary_search
                     // Either sets the split_line_copy variable to a string reference slice of the Vector, with the first element
                     // as the first occurrence of the date two weeks ago
                     // Or, sets it to the closest date after the date two weeks ago
-                    if date_idx != usize::MAX {
-                        println!("Date found...");
-                        split_line_copy = &split_newline[date_idx..];
-                    } else {
-                        println!("Date not found. Searching for closest date...");
-                        let closest = closest_date(&split_newline);
-
-                        if closest != usize::MAX {
+                    match date_idx {
+                        Some(index) => {
                             println!("Date found...");
-                            split_line_copy = &split_newline[closest..];
-                        } else {
-                            return Err(PastTwoError.into());
+                            split_line_copy = &split_newline[index..];
+                        }
+                        None => {
+                            println!("Date not found. Searching for closest date...");
+                            let closest = closest_date(&split_newline);
+
+                            match closest {
+                                Some(index) => {
+                                    println!("Date found...");
+                                    split_line_copy = &split_newline[index..];
+                                }
+                                None => return Err(PastTwoError.into()),
+                            }
                         }
                     }
 
@@ -728,10 +725,10 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
 
 /// This function constructs a new [`String`] which will have the contents to write to `hours.txt` with new hours and seconds
 /// and returns it.
-fn return_new_hours(contents: &str, seconds: &u64, hours: &f32, past_two: &f32) -> String {
+fn return_new_hours(contents: &str, seconds: &u64, hours: &f32, past_two: &f32) -> Result<String, Box<dyn Error>> {
     println!("Getting old hours...");
     // Retrieves the old time and seconds from the contents String
-    let time = retrieve_time(contents);
+    let time = retrieve_time(contents)?;
 
     // Deconstruct the seconds and hours from the tuple
     let (old_seconds, old_hours) = time;
@@ -741,10 +738,10 @@ fn return_new_hours(contents: &str, seconds: &u64, hours: &f32, past_two: &f32) 
     let added_hours = old_hours + *hours;
 
     // Return the new string of the file contents to be written to the file
-    format!(
+    Ok(format!(
         "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}hrs\nHours Past Two Weeks: {:.1}hrs\n",
         added_seconds, added_hours, past_two
-    )
+    ))
 }
 
 /// This function writes the new contents to the `hours.txt` file. This includes the total `seconds`, `hours`, and `hours_past_two`.
@@ -758,7 +755,7 @@ fn write_to_hours(
     hours: &f32,
     hours_past_two: &f32,
     sw: &Stopwatch,
-) -> IoResult<()> {
+) -> Result<(), Box<dyn Error>> {
     // Checks if the file exists, then stores the File into the mutable 'file' variable
     if let Ok(mut file) = hours_result {
         // Mutable variable to store file contents as a String
@@ -768,7 +765,7 @@ fn write_to_hours(
         match file.read_to_string(&mut contents) {
             Ok(_) => {
                 // Stores the new contents for the file as a String
-                let rl_hours_str = return_new_hours(&contents, seconds, hours, hours_past_two);
+                let rl_hours_str = return_new_hours(&contents, seconds, hours, hours_past_two)?;
 
                 // Opens the file in write mode
                 let truncated_file = File::create("C:\\RLHoursFolder\\hours.txt");
@@ -784,15 +781,15 @@ fn write_to_hours(
                                 Ok(())
                             }
                             // Returns an error if there was an issue writing to the file
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(e)),
                         }
                     }
                     // Returns an error if there was an issue creating the file
-                    Err(e) => Err(e),
+                    Err(e) => Err(Box::new(e)),
                 }
             }
             // Returns an error if there was an issue reading the file
-            Err(e) => Err(e),
+            Err(e) => Err(Box::new(e)),
         }
     } else {
         // Checks if the file was created successfully, then stores the File in the mutable 'file' variable
@@ -813,11 +810,11 @@ fn write_to_hours(
                         Ok(())
                     }
                     // Returns an error if there was any kind of issue during writing process
-                    Err(e) => Err(e),
+                    Err(e) => Err(Box::new(e)),
                 }
             }
             // Returns an error if there was an issue when attempting to create the file
-            Err(e) => Err(e),
+            Err(e) => Err(Box::new(e)),
         }
     }
 }
