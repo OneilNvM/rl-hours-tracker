@@ -134,15 +134,12 @@ pub async fn send_request(url: &String) -> Response {
 /// This function specifically handles the Urls from the [`Github`] instance, which was created
 /// through [`Github::build_url`].
 pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
-    // Create a new vector to store response text from each Url
     let mut text_vec: Vec<String> = Vec::new();
 
     // Loop through the Urls
     for url in urls {
-        // Call the function to send the GET request
         let response = send_request(&url).await;
 
-        // Retrieve the full response text
         let text = response.text().await;
 
         // Handle the response text
@@ -155,7 +152,6 @@ pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
         }
     }
 
-    // Return the Vector
     text_vec
 }
 
@@ -164,15 +160,12 @@ pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
 /// This function specifically handles the urls from the [`Github`] instance, which was created
 /// through [`Github::build_image_url`].
 pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
-    // Create a new Vector to store response bytes from each Url
     let mut blob_vec: Vec<Bytes> = Vec::new();
 
     // Loop through the Urls
     for url in urls {
-        // Call the function to send the GET request
         let response = send_request(&url).await;
 
-        // Retrieve the image bytes
         let blob = response.bytes().await;
 
         // Handle the response bytes
@@ -185,7 +178,6 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
         }
     }
 
-    // Return the Vector
     blob_vec
 }
 
@@ -193,14 +185,12 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
 ///
 /// This creates a new [`Runtime`] instance and runs the async functions to completion with [`Runtime::block_on`].
 pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> GHResponse {
-    // Create a new Tokio Runtime instance
     let rt = Runtime::new().unwrap();
 
     // Run the async functions
     let result1 = rt.block_on(handle_response(urls1));
     let result2 = rt.block_on(handle_image_response(urls2));
 
-    // Return the GHResponse instance
     GHResponse::new(result1, result2)
 }
 
@@ -255,20 +245,17 @@ pub fn generate_website_files(boolean: bool) -> IoResult<()> {
     github_grey_icon.build_url();
     github_white_icon.build_url();
 
-    // Create a Vector to store the Github instances which concern 'raw' files
     let github_text_vec = vec![
         github_main_css.url,
         github_home_css.url,
         github_animations_js.url,
     ];
 
-    // Create a Vector to store the Github instances which concern 'blob' files
     let github_blob_vec = vec![github_grey_icon.url, github_white_icon.url];
 
     // Run asynchronous functions and return a GHResponse instance
     let ghresponse = run_async_functions(github_text_vec, github_blob_vec);
 
-    // Declare variables to hold an Iterator for the raw_url and image_url Vectors
     let mut bytes_iter = ghresponse.image_url.iter();
     let mut raw_iter = ghresponse.raw_url.iter();
 
@@ -336,7 +323,7 @@ fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> IoRes
     // Creates the index.html file
     match index {
         Ok(mut idx_file) => {
-            // Generate the website and handle any errors
+            // Generate the website
             let contents: String = match generate_page(&mut hours_file, &mut date_file) {
                 Ok(page) => {
                     // Initialize the 'contents' variable with the Html
@@ -348,7 +335,7 @@ fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> IoRes
             // Writes the index.html file
             match idx_file.write_all(contents.as_bytes()) {
                 Ok(_) => {
-                    // If statement determines whether to prompt the user with the option to open the website
+                    // Prompt the user with the option to open the website
                     if boolean {
                         let mut option = String::new();
 

@@ -36,7 +36,6 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // Create a new Client instance
     let client = Client::new();
 
     // Send a GET request to the GitHub for the latest release
@@ -45,7 +44,6 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
         .send()
         .await?;
 
-    // Return the final url as a String
     let url = response.url().to_string();
 
     // Store a reverse split vector of the url separated by '/' character
@@ -85,15 +83,12 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
 /// # Errors
 /// This function returns file operation errors or a [`reqwest::Error`].
 pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
-    // Create a new Client instance
     let client = Client::new();
 
-    // Store the url to download the zip file from
     let url = format!(
         "https://github.com/OneilNvM/rl-hours-tracker/releases/download/v{ver_num}/update.zip"
     );
 
-    // Send the GET request to the GitHub repository for the 'update.zip' archive
     let response = client.get(url).send().await?;
 
     if !response.status().is_success() {
@@ -104,7 +99,6 @@ pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
         process::exit(0)
     }
 
-    // Return the Bytes of the zip archive
     let download = response.bytes().await?;
 
     // Store the application's directory
@@ -114,7 +108,6 @@ pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
         .join("Programs")
         .join("Rocket League Hours Tracker");
 
-    // Create the tmp folder for the zip archive
     let tmp_result = fs::create_dir(app_dir.join("tmp"));
 
     // Handle the Result returned by the 'tmp_result' variable

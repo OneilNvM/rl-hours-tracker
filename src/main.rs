@@ -19,9 +19,7 @@ fn main() {
     );
 
     // Checks if the program is being run from the AppData directory.
-    // This is done to make sure that anyone installing the binary through
-    // cargo does not run the self update functionality, as they can update
-    // the binary through cargo.
+    // This does not run the self update if using through rust binary.
     if let Ok(path) = env::current_dir() {
         let dir = path.to_str().unwrap();
 
