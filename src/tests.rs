@@ -124,7 +124,7 @@ fn t_date_binary_search() {
         "2024-09-29 621s",
     ];
 
-    let result = date_binary_search(&split_newline, &"2024-09-15".to_string());
+    let result = date_binary_search(&split_newline, &"2024-09-16".to_string());
 
     assert!(result.is_some());
 }

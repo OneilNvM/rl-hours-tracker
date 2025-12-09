@@ -5,6 +5,7 @@ use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlElement, Htm
 use bytes::Bytes;
 use reqwest::{Client, Response};
 use std::{
+    error::Error as ErrorTrait,
     fs::{write, File},
     io::{self, Error, ErrorKind, Read, Write},
     process,
@@ -184,14 +185,17 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
 /// Runs the asynchronous functions to completion and returns a [`GHResponse`] instance.
 ///
 /// This creates a new [`Runtime`] instance and runs the async functions to completion with [`Runtime::block_on`].
-pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> GHResponse {
-    let rt = Runtime::new().unwrap();
+pub fn run_async_functions(
+    urls1: Vec<String>,
+    urls2: Vec<String>,
+) -> Result<GHResponse, Box<dyn ErrorTrait>> {
+    let rt = Runtime::new()?;
 
     // Run the async functions
     let result1 = rt.block_on(handle_response(urls1));
     let result2 = rt.block_on(handle_image_response(urls2));
 
-    GHResponse::new(result1, result2)
+    Ok(GHResponse::new(result1, result2))
 }
 
 /// This function is used to generate the necessary files for the Rocket League Hours Tracker website.
@@ -200,7 +204,7 @@ pub fn run_async_functions(urls1: Vec<String>, urls2: Vec<String>) -> GHResponse
 ///
 /// # Errors
 /// Returns an [`io::Error`] if there were any file operations which failed
-pub fn generate_website_files(boolean: bool) -> IoResult<()> {
+pub fn generate_website_files(boolean: bool) -> Result<(), Box<dyn ErrorTrait>> {
     // Create Github instances for the website files
     let mut github_main_css = Github::new(
         "OneilNvM",
@@ -254,7 +258,7 @@ pub fn generate_website_files(boolean: bool) -> IoResult<()> {
     let github_blob_vec = vec![github_grey_icon.url, github_white_icon.url];
 
     // Run asynchronous functions and return a GHResponse instance
-    let ghresponse = run_async_functions(github_text_vec, github_blob_vec);
+    let ghresponse = run_async_functions(github_text_vec, github_blob_vec)?;
 
     let mut bytes_iter = ghresponse.image_url.iter();
     let mut raw_iter = ghresponse.raw_url.iter();
@@ -275,9 +279,12 @@ pub fn generate_website_files(boolean: bool) -> IoResult<()> {
     create_website_files(&mut raw_iter, boolean)
 }
 
-fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> IoResult<()> {
+fn create_website_files(
+    raw_iter: &mut Iter<'_, String>,
+    boolean: bool,
+) -> Result<(), Box<dyn ErrorTrait>> {
     // Create and open files
-    let index = File::create("C:\\RLHoursFolder\\website\\pages\\index.html");
+    let mut index = File::create("C:\\RLHoursFolder\\website\\pages\\index.html")?;
     let main_styles = File::create("C:\\RLHoursFolder\\website\\css\\main.css");
     let home_styles = File::create("C:\\RLHoursFolder\\website\\css\\home.css");
     let animations_js = File::create("C:\\RLHoursFolder\\website\\js\\animations.js");
@@ -320,42 +327,30 @@ fn create_website_files(raw_iter: &mut Iter<'_, String>, boolean: bool) -> IoRes
         Err(e) => eprintln!("error creating animations.js: {e}"),
     }
 
-    // Creates the index.html file
-    match index {
-        Ok(mut idx_file) => {
-            // Generate the website
-            let contents: String = match generate_page(&mut hours_file, &mut date_file) {
-                Ok(page) => {
-                    // Initialize the 'contents' variable with the Html
-                    page.replace("<body>", "<body class=\"body adaptive\">")
-                }
-                Err(e) => return Err(e),
-            };
+    // Generate the website
+    let contents: String = generate_page(&mut hours_file, &mut date_file)?;
 
-            // Writes the index.html file
-            match idx_file.write_all(contents.as_bytes()) {
-                Ok(_) => {
-                    // Prompt the user with the option to open the website
-                    if boolean {
-                        let mut option = String::new();
+    // Initialize the 'contents' variable with the Html
+    let _ = contents.replace("<body>", "<body class=\"body adaptive\">");
 
-                        println!("Open hours website in browser (y/n)?");
-                        io::stdin().read_line(&mut option).unwrap();
+    // Writes the index.html file
+    index.write_all(contents.as_bytes())?;
 
-                        if option.trim().to_lowercase() == "y"
-                            && webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html")
-                                .is_ok()
-                        {
-                            println!("OK\n");
-                        }
-                    }
-                    Ok(())
-                }
-                Err(e) => Err(e),
-            }
+    // Prompt the user with the option to open the website
+    if boolean {
+        let mut option = String::new();
+
+        println!("Open hours website in browser (y/n)?");
+        io::stdin().read_line(&mut option).unwrap();
+
+        if option.trim().to_lowercase() == "y"
+            && webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html").is_ok()
+        {
+            println!("OK\n");
         }
-        Err(e) => Err(e),
     }
+
+    Ok(())
 }
 
 /// This function generates the necessary Html for the website via the [`build_html`] library. The `hours_file` and `date_file`
