@@ -113,6 +113,7 @@ pub mod winit_tray_icon;
 /// Type alias for Results which only return [`std::io::Error`] as its error variant.
 pub type IoResult<T> = Result<T, io::Error>;
 
+/// Contains the relevant data for running the program
 struct ProgramRunVars {
     process_name: String,
     is_waiting: bool,
@@ -199,6 +200,7 @@ pub fn initialize_logging() -> Result<Handle, Box<dyn Error>> {
         .loggers(loggers)
         .build(Root::builder().appender("stdout").build(LevelFilter::Warn))?;
 
+    // Initialize logging configuration
     let handle = log4rs::init_config(config)?;
 
     Ok(handle)

@@ -1,3 +1,5 @@
+//! This modules contains the functionality for creating the tray icon for the program
+//! and creating the thread for the event loop to run in.
 use colour::yellow_ln_bold;
 use image::{ImageFormat, ImageReader};
 use std::error::Error;
@@ -11,7 +13,7 @@ use winit::application::ApplicationHandler;
 use winit::event_loop::EventLoop;
 use winit::platform::windows::EventLoopBuilderExtWindows;
 
-const IMAGE_BYTES: &[u8] = include_bytes!("../images/rl-hours-tracker-logo.ico");
+pub const IMAGE_BYTES: &[u8] = include_bytes!("../images/rl-hours-tracker-logo.ico");
 
 #[derive(Debug)]
 enum UserEvent {
@@ -191,7 +193,7 @@ pub fn initialize_tray_icon(stop_tracker: Arc<Mutex<bool>>, currently_tracking: 
     });
 }
 
-fn load_image(image_bytes: &[u8]) -> Result<Icon, Box<dyn Error>> {
+pub fn load_image(image_bytes: &[u8]) -> Result<Icon, Box<dyn Error>> {
     let mut image_reader = ImageReader::new(Cursor::new(image_bytes));
     image_reader.set_format(ImageFormat::Ico);
 

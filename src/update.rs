@@ -19,11 +19,13 @@ use std::{
 };
 use zip;
 
+/// Used for returing errors during update cleanups
 #[derive(Debug)]
 struct CleanupError {
     message: String,
 }
 
+/// Used for returning errors during updates
 #[derive(Debug)]
 struct UpdateError {
     message: String,

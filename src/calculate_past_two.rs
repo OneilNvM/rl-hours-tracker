@@ -1,3 +1,4 @@
+//! Module contains functions for caclulating the hours in the past two weeks.
 use std::{error::Error, fs::File, io::{Read, Write}};
 
 use chrono::{prelude::*, Duration as CDuration};

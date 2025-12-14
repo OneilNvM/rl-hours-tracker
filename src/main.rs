@@ -48,6 +48,7 @@ fn main() {
         )
     });
 
+    // Initialize logging for the program
     initialize_logging().unwrap_or_else(|e| {
         e_red_ln!("an error occurred when initializing logging: {e}");
         thread::sleep(Duration::from_secs(2));
@@ -56,9 +57,11 @@ fn main() {
         process::exit(1);
     });
 
+    // Create booleans for sharing between multiple threads
     let currently_tracking = Arc::new(Mutex::new(false));
     let stop_tracker: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 
+    // Initialize the tray icon
     initialize_tray_icon(stop_tracker.clone(), currently_tracking.clone());
 
     // Checks if the program is being run from the AppData directory.
