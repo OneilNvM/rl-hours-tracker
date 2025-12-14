@@ -3,7 +3,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::{date_binary_search, website_files::*};
+use crate::{calculate_past_two::date_binary_search, website_files::*};
 
 #[test]
 fn t_builds_raw_url() {

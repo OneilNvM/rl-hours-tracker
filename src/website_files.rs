@@ -3,6 +3,8 @@
 use crate::IoResult;
 use build_html::{Container, ContainerType, Html, HtmlContainer, HtmlElement, HtmlPage, HtmlTag};
 use bytes::Bytes;
+use colour::{green, green_ln_bold, red};
+use log::{error, warn};
 use reqwest::{Client, Response};
 use std::{
     error::Error as ErrorTrait,
@@ -124,7 +126,7 @@ pub async fn send_request(url: &String) -> Response {
     match request {
         Ok(response) => response,
         Err(e) => {
-            eprintln!("error sending get request for url: {url}\n{e}");
+            error!("error sending get request for url: {url}\n{e}");
             process::exit(1);
         }
     }
@@ -147,7 +149,7 @@ pub async fn handle_response(urls: Vec<String>) -> Vec<String> {
         match text {
             Ok(result) => text_vec.push(result),
             Err(e) => {
-                eprintln!("error retrieving full response text: {e}");
+                error!("error retrieving full response text: {e}");
                 process::exit(1);
             }
         }
@@ -173,7 +175,7 @@ pub async fn handle_image_response(urls: Vec<String>) -> Vec<Bytes> {
         match blob {
             Ok(result) => blob_vec.push(result),
             Err(e) => {
-                eprintln!("error retrieving response bytes: {e}");
+                error!("error retrieving response bytes: {e}");
                 process::exit(1);
             }
         }
@@ -268,12 +270,12 @@ pub fn generate_website_files(boolean: bool) -> Result<(), Box<dyn ErrorTrait>> 
         "C:\\RLHoursFolder\\website\\images\\rl-icon-grey.png",
         bytes_iter.next().unwrap(),
     )
-    .unwrap_or_else(|e| eprintln!("error writing rl-icon-grey.png: {e}"));
+    .unwrap_or_else(|e| warn!("failed to write rl-icon-grey.png: {e}"));
     write(
         "C:\\RLHoursFolder\\website\\images\\rl-icon-white.png",
         bytes_iter.next().unwrap(),
     )
-    .unwrap_or_else(|e| eprintln!("error writing rl-icon-white.png: {e}"));
+    .unwrap_or_else(|e| warn!("failed to write rl-icon-white.png: {e}"));
 
     // Create the files for the website
     create_website_files(&mut raw_iter, boolean)
@@ -297,10 +299,10 @@ fn create_website_files(
             // Writes the CSS content to the file
             match ms_file.write_all(raw_iter.next().unwrap().as_bytes()) {
                 Ok(_) => (),
-                Err(e) => eprintln!("error writing to main.css: {e}"),
+                Err(e) => warn!("failed to write to main.css: {e}"),
             }
         }
-        Err(e) => eprintln!("error creating main.css: {e}"),
+        Err(e) => warn!("failed to create main.css: {e}"),
     }
 
     // Creates the home.css file
@@ -309,10 +311,10 @@ fn create_website_files(
             // Writes the CSS content to the file
             match hs_file.write_all(raw_iter.next().unwrap().as_bytes()) {
                 Ok(_) => (),
-                Err(e) => eprintln!("error writing to home.css: {e}"),
+                Err(e) => warn!("failed to write to home.css: {e}"),
             }
         }
-        Err(e) => eprintln!("error creating home.css: {e}"),
+        Err(e) => warn!("failed to create home.css: {e}"),
     }
 
     // Creates the animations.js file
@@ -321,32 +323,37 @@ fn create_website_files(
             // Writes the JavaScript content to the file
             match a_js_file.write_all(raw_iter.next().unwrap().as_bytes()) {
                 Ok(_) => (),
-                Err(e) => eprintln!("error writing to animations.js: {e}"),
+                Err(e) => warn!("failed to write to animations.js: {e}"),
             }
         }
-        Err(e) => eprintln!("error creating animations.js: {e}"),
+        Err(e) => warn!("failed to create animations.js: {e}"),
     }
 
     // Generate the website
     let contents: String = generate_page(&mut hours_file, &mut date_file)?;
 
     // Initialize the 'contents' variable with the Html
-    let _ = contents.replace("<body>", "<body class=\"body adaptive\">");
+    let page = contents.replace("<body>", "<body class=\"body adaptive\">");
 
     // Writes the index.html file
-    index.write_all(contents.as_bytes())?;
+    index.write_all(page.as_bytes())?;
 
     // Prompt the user with the option to open the website
     if boolean {
         let mut option = String::new();
 
-        println!("Open hours website in browser (y/n)?");
+        print!("Open hours website in browser (");
+        green!("y");
+        print!(" / ");
+        red!("n");
+        print!("): ");
+        io::stdout().flush().unwrap_or_else(|_| println!("Open hours website in browser (y/n)?"));
         io::stdin().read_line(&mut option).unwrap();
 
         if option.trim().to_lowercase() == "y"
             && webbrowser::open("C:\\RLHoursFolder\\website\\pages\\index.html").is_ok()
         {
-            println!("OK\n");
+            green_ln_bold!("OK\n");
         }
     }
 

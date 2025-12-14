@@ -2,10 +2,12 @@
 //! which can be installed through the GitHub repository [releases](https://github.com/OneilNvM/rl-hours-tracker/releases)
 //! section.
 use bytes::Bytes;
+use colour::{green, green_ln_bold, magenta, magenta_ln_bold, red, yellow_ln_bold};
+use log::{error, info, warn};
 use core::str;
 use directories::BaseDirs;
 use reqwest::{self, Client};
-use std::{env, error::Error, fs, io, path::PathBuf, process, thread, time::Duration};
+use std::{env, error::Error, fs, io::{self, Write}, path::PathBuf, process, thread, time::Duration};
 use zip;
 
 /// Asynchronous function which checks the the GitHub repository for the latest release
@@ -18,6 +20,7 @@ use zip;
 /// This function returns a [`reqwest::Error`] if there were any errors sending `GET` request to GitHub
 /// or any error from the [`update`] function.
 pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
+    info!("Checking for updates...\n");
     // Check if there was a prior update to finish any additional cleanup
     let get_prior_update = process::Command::new("cmd")
         .args(["/C", "set PRIOR_UPDATE"])
@@ -32,7 +35,7 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
             }
         }
         Err(e) => {
-            eprintln!("issue getting PRIOR_UPDATE: {e}");
+            warn!("issue getting PRIOR_UPDATE: {e}");
         }
     }
 
@@ -54,18 +57,25 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
 
     // Check if the latest version is equal to the current version
     if version == env!("CARGO_PKG_VERSION") {
-        println!("Latest Version: {version}");
+        yellow_ln_bold!("Latest Version: {version}");
         Ok(())
     } else {
         let mut option = String::new();
 
-        println!("NEW VERSION AVAILABLE!!\n\nUpdate to version '{version}' (y/n)?");
+        magenta_ln_bold!("NEW VERSION AVAILABLE!!\n");
+        magenta!("Update to version '{version}' ");
+        print!("(");
+        green!("y");
+        print!(" / ");
+        red!("n");
+        print!("): ");
+        std::io::stdout().flush().unwrap_or_else(|_| println!("Update to version '{version}' (y/n)?"));
 
         io::stdin().read_line(&mut option).unwrap();
 
         // Check if the user wants to update or not
         if option.trim().to_lowercase() == "y" {
-            println!("\nDownloading update...\n");
+            yellow_ln_bold!("\nDownloading update...\n");
             update(&version).await?;
             Ok(())
         } else {
@@ -92,9 +102,9 @@ pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
     let response = client.get(url).send().await?;
 
     if !response.status().is_success() {
-        println!("The newest update includes changes to the built-in updater.");
+        yellow_ln_bold!("The newest update includes changes to the built-in updater.");
         thread::sleep(Duration::from_secs(3));
-        println!("You will need to download the newest installer from GitHub.");
+        yellow_ln_bold!("You will need to download the newest installer from GitHub.");
         thread::sleep(Duration::from_secs(5));
         process::exit(0)
     }
@@ -112,15 +122,15 @@ pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
 
     // Handle the Result returned by the 'tmp_result' variable
     if tmp_result.is_err() {
-        eprintln!("error creating tmp directory.\ncreating zip file locally.\n");
+        error!("error creating tmp directory.\ncreating zip file locally.\n");
         extract_local_zip(&app_dir, &download)?;
     } else {
         extract_update(app_dir, download)?;
     }
 
-    println!("Update complete!\n");
+    green_ln_bold!("Update complete!\n");
     thread::sleep(Duration::from_millis(1000));
-    println!("Please wait for the program to close...");
+    yellow_ln_bold!("Please wait for the program to close...");
     thread::sleep(Duration::from_millis(5000));
 
     // Set the 'PRIOR_UPDATE' environment variable
@@ -129,13 +139,14 @@ pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
         .status();
 
     if let Err(e) = set_prior_update {
-        eprintln!("issue setting up PRIOR_UPDATE: {e}");
+        warn!("issue setting up PRIOR_UPDATE: {e}");
     }
 
     process::exit(0)
 }
 
 fn additional_cleanup() -> Result<(), io::Error> {
+    info!("Starting additional cleanup of previous version");
     let base_dir = BaseDirs::new().unwrap();
     let app_dir = base_dir
         .config_local_dir()
@@ -149,45 +160,45 @@ fn additional_cleanup() -> Result<(), io::Error> {
         .status();
 
     if let Err(e) = change_prior_update {
-        eprintln!("issue changing PRIOR_UPDATE: {e}");
+        warn!("issue changing PRIOR_UPDATE: {e}");
     }
 
-    println!("Cleanup successful");
+    info!("Cleanup successful");
 
     Ok(())
 }
 
 fn extract_update(app_dir: PathBuf, download: Bytes) -> Result<(), Box<dyn Error>> {
-    println!("Created 'tmp' directory...");
+    yellow_ln_bold!("Created 'tmp' directory...");
 
     let file_name = app_dir.join("tmp").join("update.zip");
 
     fs::write(file_name, download)?;
 
-    println!("Downloaded 'update.zip' archive...");
+    yellow_ln_bold!("Downloaded 'update.zip' archive...");
 
     fs::rename(
         app_dir.join("rl-hours-tracker.exe"),
         app_dir.join("old-rl-hours-tracker.exe"),
     )?;
 
-    println!("Removing old files...");
+    yellow_ln_bold!("Removing old files...");
 
     fs::remove_file(app_dir.join("unins000.dat"))?;
     fs::remove_file(app_dir.join("unins000.exe"))?;
 
     let update = fs::File::open(app_dir.join("tmp\\update.zip"))?;
 
-    println!("Extracting update files...");
+    yellow_ln_bold!("Extracting update files...");
 
     let mut archive = zip::ZipArchive::new(update)?;
     archive.extract(&app_dir)?;
 
-    println!("Update files extracted");
+    yellow_ln_bold!("Update files extracted");
 
     fs::remove_dir_all(app_dir.join("tmp"))?;
 
-    println!("Removed tmp directory...\n");
+    yellow_ln_bold!("Removed tmp directory...\n");
 
     Ok(())
 }
@@ -197,7 +208,7 @@ fn extract_local_zip(app_dir: &PathBuf, download: &Bytes) -> Result<(), Box<dyn 
 
     fs::write(file_name, download)?;
 
-    println!("Downloaded 'update.zip' archive locally...");
+    yellow_ln_bold!("Downloaded 'update.zip' archive locally...");
 
     fs::rename(
         app_dir.join("rl-hours-tracker.exe"),
@@ -207,20 +218,20 @@ fn extract_local_zip(app_dir: &PathBuf, download: &Bytes) -> Result<(), Box<dyn 
     fs::remove_file(app_dir.join("unins000.dat"))?;
     fs::remove_file(app_dir.join("unins000.exe"))?;
 
-    println!("Removing old files...");
+    yellow_ln_bold!("Removing old files...");
 
     let update = fs::File::open(app_dir.join("update.zip"))?;
 
-    println!("Extracting update files...");
+    yellow_ln_bold!("Extracting update files...");
 
     let mut archive = zip::ZipArchive::new(update)?;
     archive.extract(app_dir)?;
 
-    println!("Update files extracted");
+    yellow_ln_bold!("Update files extracted");
 
     fs::remove_file(app_dir.join("update.zip"))?;
 
-    println!("Removed 'update.zip' archive...\n");
+    yellow_ln_bold!("Removed 'update.zip' archive...\n");
 
     Ok(())
 }
