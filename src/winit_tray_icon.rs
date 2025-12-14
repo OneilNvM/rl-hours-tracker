@@ -1,5 +1,6 @@
 use colour::yellow_ln_bold;
 use image::{ImageFormat, ImageReader};
+use std::error::Error;
 use std::io::{Cursor, Write};
 use std::process;
 use std::sync::{Arc, Mutex};
@@ -19,6 +20,7 @@ enum UserEvent {
 }
 
 struct Application {
+    currently_tracking: Option<Arc<Mutex<bool>>>,
     stop_tracker: Option<Arc<Mutex<bool>>>,
     tray_icon: Option<TrayIcon>,
 }
@@ -26,18 +28,26 @@ struct Application {
 impl Application {
     fn new() -> Application {
         Application {
+            currently_tracking: None,
             stop_tracker: None,
             tray_icon: None,
         }
     }
 
     fn new_tray_icon() -> TrayIcon {
+        let image = load_image(IMAGE_BYTES).unwrap_or_else(|e| {
+            log::error!("error occurred when loading image: {e}");
+            panic!("could not load image for tray icon");
+        });
         TrayIconBuilder::new()
             .with_menu(Box::new(Self::new_tray_menu()))
             .with_tooltip("RL Hours Tracker")
-            .with_icon(load_image(IMAGE_BYTES))
+            .with_icon(image)
             .build()
-            .unwrap()
+            .unwrap_or_else(|e| {
+                log::error!("error occurred creating tray icon: {e}");
+                panic!("could not create tray icon");
+            })
     }
 
     fn new_tray_menu() -> Menu {
@@ -51,6 +61,12 @@ impl Application {
         }
 
         tray_menu
+    }
+
+    fn set_currently_tracking(&mut self, currently_tracking: &Arc<Mutex<bool>>) -> &mut Self {
+        self.currently_tracking = Some(currently_tracking.clone());
+
+        self
     }
 
     fn set_stop_tracker(&mut self, stop_tracker: &Arc<Mutex<bool>>) -> &mut Self {
@@ -92,8 +108,51 @@ impl ApplicationHandler<UserEvent> for Application {
                         .expect("could not flush the output stream");
                     yellow_ln_bold!("Goodbye!");
                     process::exit(0);
-                } else if menu.id == "1002" {
-                    *self.stop_tracker.as_mut().unwrap().try_lock().unwrap() = true;
+                } else if menu.id == "1002"
+                    && *self
+                        .currently_tracking
+                        .as_ref()
+                        .unwrap_or_else(|| {
+                            log::error!("currently_tracking is None");
+                            panic!("currently_tracking is None");
+                        })
+                        .try_lock()
+                        .unwrap_or_else(|e| {
+                            log::error!(
+                                "error when attempting to access lock for currently_tracking: {e}"
+                            );
+                            panic!("error when attempting to access lock for currently_tracking");
+                        })
+                {
+                    *self
+                        .stop_tracker
+                        .as_mut()
+                        .unwrap_or_else(|| {
+                            log::error!("currently_tracking is None");
+                            panic!("currently_tracking is None");
+                        })
+                        .try_lock()
+                        .unwrap_or_else(|e| {
+                            log::error!(
+                                "error when attempting to access lock for currently_tracking: {e}"
+                            );
+                            panic!("error when attempting to access lock for currently_tracking");
+                        }) = true;
+
+                    *self
+                        .currently_tracking
+                        .as_mut()
+                        .unwrap_or_else(|| {
+                            log::error!("currently_tracking is None");
+                            panic!("currently_tracking is None");
+                        })
+                        .try_lock()
+                        .unwrap_or_else(|e| {
+                            log::error!(
+                                "error when attempting to access lock for currently_tracking: {e}"
+                            );
+                            panic!("error when attempting to access lock for currently_tracking");
+                        }) = false;
                 }
             }
             UserEvent::TrayIconEvent(_tray) => {}
@@ -101,12 +160,15 @@ impl ApplicationHandler<UserEvent> for Application {
     }
 }
 
-pub fn initialize_tray_icon(stop_tracker: Arc<Mutex<bool>>) {
+pub fn initialize_tray_icon(stop_tracker: Arc<Mutex<bool>>, currently_tracking: Arc<Mutex<bool>>) {
     std::thread::spawn(move || {
         let event_loop = EventLoop::<UserEvent>::with_user_event()
             .with_any_thread(true)
             .build()
-            .unwrap();
+            .unwrap_or_else(|e| {
+                log::error!("error occurred creating event loop: {e}");
+                panic!("could not create event loop for tray icon");
+            });
 
         let proxy = event_loop.create_proxy();
         TrayIconEvent::set_event_handler(Some(move |event| {
@@ -120,18 +182,20 @@ pub fn initialize_tray_icon(stop_tracker: Arc<Mutex<bool>>) {
 
         let mut app = Application::new();
         app.set_stop_tracker(&stop_tracker);
+        app.set_currently_tracking(&currently_tracking);
 
         if let Err(e) = event_loop.run_app(&mut app) {
-            println!("Error: {e:?}")
+            log::error!("Error: {e:?}");
+            colour::e_red_ln!("Error: {e:?}");
         }
     });
 }
 
-fn load_image(image_bytes: &[u8]) -> Icon {
+fn load_image(image_bytes: &[u8]) -> Result<Icon, Box<dyn Error>> {
     let mut image_reader = ImageReader::new(Cursor::new(image_bytes));
     image_reader.set_format(ImageFormat::Ico);
 
-    let image = image_reader.decode().unwrap();
+    let image = image_reader.decode()?;
     let (icon_rgba, icon_width, icon_height) = {
         let image = image.into_rgba8();
         let (width, height) = image.dimensions();
@@ -139,5 +203,7 @@ fn load_image(image_bytes: &[u8]) -> Icon {
         (rgba, width, height)
     };
 
-    Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap()
+    let icon = Icon::from_rgba(icon_rgba, icon_width, icon_height)?;
+
+    Ok(icon)
 }

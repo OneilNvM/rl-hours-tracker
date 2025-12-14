@@ -56,9 +56,10 @@ fn main() {
         process::exit(1);
     });
 
+    let currently_tracking = Arc::new(Mutex::new(false));
     let stop_tracker: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 
-    initialize_tray_icon(stop_tracker.clone());
+    initialize_tray_icon(stop_tracker.clone(), currently_tracking.clone());
 
     // Checks if the program is being run from the AppData directory.
     // This does not run the self update if using through rust binary.
@@ -95,5 +96,5 @@ fn main() {
         green_ln_bold!("Past Two Updated!\n");
     }
 
-    run(stop_tracker.clone());
+    run(stop_tracker.clone(), currently_tracking.clone());
 }

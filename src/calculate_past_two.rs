@@ -112,7 +112,7 @@ pub fn calculate_past_two() -> Result<u64, Box<dyn Error>> {
         }
         // Find closest date if the target date was not found
         None => {
-            dark_red_ln_bold!("Date not found. Searching for closest date...");
+            dark_red_ln_bold!("\nDate not found. Searching for closest date...\n");
             let closest = closest_date(&split_newline);
 
             match closest {

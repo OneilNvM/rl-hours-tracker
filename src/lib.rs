@@ -117,16 +117,18 @@ struct ProgramRunVars {
     process_name: String,
     is_waiting: bool,
     option: String,
+    currently_tracking: Arc<Mutex<bool>>,
     stop_tracker: Arc<Mutex<bool>>,
 }
 
 impl ProgramRunVars {
-    fn new(stop_tracker: Arc<Mutex<bool>>) -> Self {
+    fn new(stop_tracker: Arc<Mutex<bool>>, currently_tracking: Arc<Mutex<bool>>) -> Self {
         Self {
             process_name: String::from("RocketLeague.exe"),
             is_waiting: false,
             option: String::with_capacity(3),
             stop_tracker,
+            currently_tracking,
         }
     }
 }
@@ -150,35 +152,46 @@ impl Error for PastTwoError {}
 ///
 /// Logs are stored in `C:/RLHoursFolder/logs`
 pub fn initialize_logging() -> Result<Handle, Box<dyn Error>> {
+    // Create appenders
     let stdout = ConsoleAppender::builder().build();
-    let file_appender =
-        FileAppender::builder().build("C:/RLHoursFolder/logs/test_$TIME{%Y-%m-%d_%H-%M-%S}.log")?;
+    let general_logs = FileAppender::builder()
+        .build("C:/RLHoursFolder/logs/general_$TIME{%Y-%m-%d_%H-%M-%S}.log")?;
+    let wti_errors = FileAppender::builder()
+        .build("C:/RLHoursFolder/logs/tray-icon_$TIME{%Y-%m-%d_%H-%M-%S}.log")?;
     let requests = FileAppender::builder()
         .encoder(Box::new(PatternEncoder::new("{d} - {m}{n}")))
         .build("C:/RLHoursFolder/logs/requests.log")?;
 
+    // Create loggers
     let rl_hours_tracker_logger = Logger::builder()
         .additive(false)
-        .appenders(vec!["file_appender"])
+        .appenders(vec!["general_logs"])
         .build("rl_hours_tracker", LevelFilter::Info);
     let rl_hours_tracker_update_logger = Logger::builder()
         .additive(false)
-        .appenders(vec!["requests", "file_appender"])
+        .appenders(vec!["requests", "general_logs"])
         .build("rl_hours_tracker::update", LevelFilter::Trace);
     let rl_hours_tracker_cpt_logger = Logger::builder()
         .additive(false)
-        .appenders(vec!["file_appender"])
+        .appenders(vec!["general_logs"])
         .build("rl_hours_tracker::calculate_past_two", LevelFilter::Info);
+    let rl_hours_tracker_wti_logger = Logger::builder()
+        .additive(false)
+        .appenders(vec!["general_logs"])
+        .build("rl_hours_tracker::winit_tray_icon", LevelFilter::Error);
 
+    // Move loggers and appenders into vectors
     let loggers = vec![
         rl_hours_tracker_logger,
         rl_hours_tracker_update_logger,
         rl_hours_tracker_cpt_logger,
+        rl_hours_tracker_wti_logger
     ];
     let appenders = vec![
         Appender::builder().build("stdout", Box::new(stdout)),
-        Appender::builder().build("file_appender", Box::new(file_appender)),
+        Appender::builder().build("general_logs", Box::new(general_logs)),
         Appender::builder().build("requests", Box::new(requests)),
+        Appender::builder().build("wti_errors", Box::new(wti_errors))
     ];
 
     let config = Config::builder()
@@ -201,8 +214,8 @@ pub fn run_self_update() -> Result<(), Box<dyn Error>> {
 }
 
 /// This function runs the program
-pub fn run(stop_tracker: Arc<Mutex<bool>>) {
-    let mut program = ProgramRunVars::new(stop_tracker);
+pub fn run(stop_tracker: Arc<Mutex<bool>>, currently_tracking: Arc<Mutex<bool>>) {
+    let mut program = ProgramRunVars::new(stop_tracker, currently_tracking);
 
     // Run the main loop
     run_main_loop(&mut program);
@@ -246,7 +259,11 @@ fn run_main_loop(program: &mut ProgramRunVars) {
     'main_loop: loop {
         // Check if the process is running
         if check_for_process(&program.process_name) {
-            record_hours(&program.process_name, program.stop_tracker.clone());
+            record_hours(
+                &program.process_name,
+                program.stop_tracker.clone(),
+                program.currently_tracking.clone(),
+            );
 
             // Generate the website files
             website_files::generate_website_files(true)
@@ -262,7 +279,9 @@ fn run_main_loop(program: &mut ProgramRunVars) {
             std::io::stdout()
                 .flush()
                 .unwrap_or_else(|_| println!("End program (y/n)?\n"));
-            io::stdin().read_line(&mut program.option).unwrap_or_default();
+            io::stdin()
+                .read_line(&mut program.option)
+                .unwrap_or_default();
 
             if program.option.trim() == "y" || program.option.trim() == "Y" {
                 break 'main_loop;
@@ -307,14 +326,32 @@ fn run_main_loop(program: &mut ProgramRunVars) {
 /// The stopwatch is ended and the File operations are run at the end of the process.
 /// The date and elapsed time are stored in the `date.txt` file and the hours is stored in
 /// `hours.txt`
-fn record_hours(process_name: &str, stop_tracker: Arc<Mutex<bool>>) {
+fn record_hours(
+    process_name: &str,
+    stop_tracker: Arc<Mutex<bool>>,
+    currently_tracking: Arc<Mutex<bool>>,
+) {
     let mut sw = Stopwatch::start_new();
 
     blue_ln_bold!("\nRocket League is running\n");
 
+    *currently_tracking.try_lock().unwrap_or_else(|e| {
+        error!("error when attempting to access lock for currently_tracking: {e}");
+        panic!("could not access lock for currently_tracking");
+    }) = true;
+
     // Start live stopwatch
     live_stopwatch(process_name, stop_tracker.clone());
-    *stop_tracker.try_lock().unwrap() = false;
+
+    *currently_tracking.try_lock().unwrap_or_else(|e| {
+        error!("error when attempting to access lock for currently_tracking: {e}");
+        panic!("could not access lock for currently_tracking");
+    }) = false;
+
+    *stop_tracker.try_lock().unwrap_or_else(|e| {
+        error!("error when attempting to access lock for stop_tracking: {e}");
+        panic!("could not access lock for stop_tracking");
+    }) = false;
 
     // Stop the stopwatch
     sw.stop();
@@ -359,7 +396,12 @@ fn live_stopwatch(process_name: &str, stop_tracker: Arc<Mutex<bool>>) {
     let mut minutes: u8 = 0;
     let mut hours: u16 = 0;
 
-    while check_for_process(process_name) && !*stop_tracker.try_lock().unwrap() {
+    while check_for_process(process_name)
+        && !*stop_tracker.try_lock().unwrap_or_else(|e| {
+            error!("error when attempting to access lock for stop_tracking: {e}");
+            panic!("could not access lock for stop_tracking");
+        })
+    {
         let timer_now = timer_early
             .checked_add(Duration::from_millis(999))
             .unwrap_or_else(|| {
@@ -514,7 +556,7 @@ fn write_to_hours(
         // Check if the write was successful
         truncated_file.write_all(rl_hours_str.as_bytes())?;
 
-        green_ln_bold!("Successful!");
+        green_ln_bold!("Successful!\n");
         Ok(())
     } else {
         // Check if the file was created successfully
@@ -558,7 +600,7 @@ fn write_to_date(date_result: IoResult<File>, seconds: &u64) -> IoResult<()> {
         // Checks if the write was successful
         append_date_result.write_all(today_str.as_bytes())?;
 
-        green_ln_bold!("Successful!");
+        green_ln_bold!("Successful!\n");
         Ok(())
     } else {
         // Check if the file was created

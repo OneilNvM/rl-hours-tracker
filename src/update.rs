@@ -3,12 +3,46 @@
 //! section.
 use bytes::Bytes;
 use colour::{green, green_ln_bold, magenta, magenta_ln_bold, red, yellow_ln_bold};
-use log::{error, info, warn};
 use core::str;
 use directories::BaseDirs;
+use log::{error, info, warn};
 use reqwest::{self, Client};
-use std::{env, error::Error, fs, io::{self, Write}, path::PathBuf, process, thread, time::Duration};
+use std::{
+    env,
+    error::Error,
+    fmt::Display,
+    fs,
+    io::{self, Write},
+    path::PathBuf,
+    process, thread,
+    time::Duration,
+};
 use zip;
+
+#[derive(Debug)]
+struct CleanupError {
+    message: String,
+}
+
+#[derive(Debug)]
+struct UpdateError {
+    message: String,
+}
+
+impl Display for UpdateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Update Error: {}", self.message)
+    }
+}
+
+impl Display for CleanupError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Cleanup Error: {}", self.message)
+    }
+}
+
+impl Error for UpdateError {}
+impl Error for CleanupError {}
 
 /// Asynchronous function which checks the the GitHub repository for the latest release
 /// of the program.
@@ -28,7 +62,7 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
 
     match get_prior_update {
         Ok(output) => {
-            let output_string = str::from_utf8(&output.stdout).unwrap();
+            let output_string = str::from_utf8(&output.stdout)?;
 
             if output_string.contains("1") {
                 additional_cleanup()?
@@ -69,9 +103,11 @@ pub async fn check_for_update() -> Result<(), Box<dyn Error>> {
         print!(" / ");
         red!("n");
         print!("): ");
-        std::io::stdout().flush().unwrap_or_else(|_| println!("Update to version '{version}' (y/n)?"));
+        std::io::stdout()
+            .flush()
+            .unwrap_or_else(|_| println!("Update to version '{version}' (y/n)?"));
 
-        io::stdin().read_line(&mut option).unwrap();
+        io::stdin().read_line(&mut option)?;
 
         // Check if the user wants to update or not
         if option.trim().to_lowercase() == "y" {
@@ -112,8 +148,17 @@ pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
     let download = response.bytes().await?;
 
     // Store the application's directory
-    let base_dir = BaseDirs::new().unwrap();
+    let base_dir = BaseDirs::new();
+
+    if let None = base_dir {
+        error!("base dir returned None");
+        return Err(Box::new(UpdateError {
+            message: String::from("base dir returned None"),
+        }));
+    }
+
     let app_dir = base_dir
+        .unwrap()
         .config_local_dir()
         .join("Programs")
         .join("Rocket League Hours Tracker");
@@ -145,10 +190,19 @@ pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
     process::exit(0)
 }
 
-fn additional_cleanup() -> Result<(), io::Error> {
+fn additional_cleanup() -> Result<(), Box<dyn Error>> {
     info!("Starting additional cleanup of previous version");
-    let base_dir = BaseDirs::new().unwrap();
+    let base_dir = BaseDirs::new();
+
+    if let None = base_dir {
+        error!("base dir returned None");
+        return Err(Box::new(CleanupError {
+            message: String::from("base dir returned None"),
+        }));
+    }
+
     let app_dir = base_dir
+        .unwrap()
         .config_local_dir()
         .join("Programs")
         .join("Rocket League Hours Tracker");
