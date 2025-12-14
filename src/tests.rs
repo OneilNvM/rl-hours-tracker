@@ -1,9 +1,9 @@
-use std::{
-    thread::sleep,
-    time::{Duration, SystemTime},
+use crate::{
+    calculate_past_two::date_binary_search,
+    initialize_logging,
+    website_files::*,
+    winit_tray_icon::{load_image, IMAGE_BYTES},
 };
-
-use crate::{date_binary_search, website_files::*};
 
 #[test]
 fn t_builds_raw_url() {
@@ -88,24 +88,6 @@ async fn t_handle_image_response() {
 }
 
 #[test]
-fn t_time_test() {
-    let mut timer = SystemTime::now()
-        .checked_add(Duration::from_millis(1000))
-        .unwrap();
-
-    for _i in 0..5 {
-        let delay = timer.duration_since(SystemTime::now()).unwrap();
-
-        println!("Slept for {:?}ms", delay.as_millis());
-        sleep(delay);
-
-        timer += Duration::from_millis(1000);
-    }
-
-    assert!(true)
-}
-
-#[test]
 fn t_date_binary_search() {
     let split_newline: Vec<&str> = vec![
         "2024-09-15 58s",
@@ -124,7 +106,21 @@ fn t_date_binary_search() {
         "2024-09-29 621s",
     ];
 
-    let result = date_binary_search(&split_newline, &"2024-09-15".to_string());
+    let result = date_binary_search(&split_newline, &"2024-09-16".to_string());
 
     assert!(result.is_some());
+}
+
+#[test]
+fn t_initilize_logging() {
+    let handle = initialize_logging();
+
+    assert!(handle.is_ok());
+}
+
+#[test]
+fn t_load_image() {
+    let image = load_image(IMAGE_BYTES);
+
+    assert!(image.is_ok());
 }
