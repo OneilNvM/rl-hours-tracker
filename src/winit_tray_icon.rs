@@ -1,5 +1,6 @@
 use colour::yellow_ln_bold;
-use std::io::Write;
+use image::{ImageFormat, ImageReader};
+use std::io::{Cursor, Write};
 use std::process;
 use std::sync::{Arc, Mutex};
 use tray_icon::menu::{IsMenuItem, MenuEvent, MenuItem};
@@ -8,6 +9,8 @@ use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 use winit::application::ApplicationHandler;
 use winit::event_loop::EventLoop;
 use winit::platform::windows::EventLoopBuilderExtWindows;
+
+const IMAGE_BYTES: &[u8] = include_bytes!("../images/rl-hours-tracker-logo.ico");
 
 #[derive(Debug)]
 enum UserEvent {
@@ -22,16 +25,17 @@ struct Application {
 
 impl Application {
     fn new() -> Application {
-        Application { stop_tracker: None, tray_icon: None }
+        Application {
+            stop_tracker: None,
+            tray_icon: None,
+        }
     }
 
     fn new_tray_icon() -> TrayIcon {
         TrayIconBuilder::new()
             .with_menu(Box::new(Self::new_tray_menu()))
             .with_tooltip("RL Hours Tracker")
-            .with_icon(
-                Icon::from_path("images/rl-hours-tracker-logo.ico", Some((128, 128))).unwrap(),
-            )
+            .with_icon(load_image(IMAGE_BYTES))
             .build()
             .unwrap()
     }
@@ -121,4 +125,19 @@ pub fn initialize_tray_icon(stop_tracker: Arc<Mutex<bool>>) {
             println!("Error: {e:?}")
         }
     });
+}
+
+fn load_image(image_bytes: &[u8]) -> Icon {
+    let mut image_reader = ImageReader::new(Cursor::new(image_bytes));
+    image_reader.set_format(ImageFormat::Ico);
+
+    let image = image_reader.decode().unwrap();
+    let (icon_rgba, icon_width, icon_height) = {
+        let image = image.into_rgba8();
+        let (width, height) = image.dimensions();
+        let rgba = image.into_raw();
+        (rgba, width, height)
+    };
+
+    Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap()
 }
