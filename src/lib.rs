@@ -186,13 +186,13 @@ pub fn initialize_logging() -> Result<Handle, Box<dyn Error>> {
         rl_hours_tracker_logger,
         rl_hours_tracker_update_logger,
         rl_hours_tracker_cpt_logger,
-        rl_hours_tracker_wti_logger
+        rl_hours_tracker_wti_logger,
     ];
     let appenders = vec![
         Appender::builder().build("stdout", Box::new(stdout)),
         Appender::builder().build("general_logs", Box::new(general_logs)),
         Appender::builder().build("requests", Box::new(requests)),
-        Appender::builder().build("wti_errors", Box::new(wti_errors))
+        Appender::builder().build("wti_errors", Box::new(wti_errors)),
     ];
 
     let config = Config::builder()

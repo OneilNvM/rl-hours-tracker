@@ -1,11 +1,15 @@
 //! Module contains functions for caclulating the hours in the past two weeks.
-use std::{error::Error, fs::File, io::{Read, Write}};
+use std::{
+    error::Error,
+    fs::File,
+    io::{Read, Write},
+};
 
 use chrono::{prelude::*, Duration as CDuration};
 use colour::{dark_red_ln_bold, green_ln_bold, yellow_ln_bold};
 use log::{info, warn};
 
-use crate::{PastTwoError, retrieve_time, website_files};
+use crate::{retrieve_time, website_files, PastTwoError};
 
 /// This function takes a reference of a [`Vec<&str>`] Vector and returns a [`Some`] with the index of the closest
 /// after the date two weeks ago.

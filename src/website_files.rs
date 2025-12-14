@@ -347,7 +347,9 @@ fn create_website_files(
         print!(" / ");
         red!("n");
         print!("): ");
-        io::stdout().flush().unwrap_or_else(|_| println!("Open hours website in browser (y/n)?"));
+        io::stdout()
+            .flush()
+            .unwrap_or_else(|_| println!("Open hours website in browser (y/n)?"));
         io::stdin().read_line(&mut option).unwrap();
 
         if option.trim().to_lowercase() == "y"

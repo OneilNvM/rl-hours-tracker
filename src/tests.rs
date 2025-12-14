@@ -1,4 +1,9 @@
-use crate::{calculate_past_two::date_binary_search, initialize_logging, website_files::*, winit_tray_icon::{IMAGE_BYTES, load_image}};
+use crate::{
+    calculate_past_two::date_binary_search,
+    initialize_logging,
+    website_files::*,
+    winit_tray_icon::{load_image, IMAGE_BYTES},
+};
 
 #[test]
 fn t_builds_raw_url() {

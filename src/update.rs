@@ -152,7 +152,7 @@ pub async fn update(ver_num: &str) -> Result<(), Box<dyn Error>> {
     // Store the application's directory
     let base_dir = BaseDirs::new();
 
-    if let None = base_dir {
+    if base_dir.is_none() {
         error!("base dir returned None");
         return Err(Box::new(UpdateError {
             message: String::from("base dir returned None"),
@@ -196,7 +196,7 @@ fn additional_cleanup() -> Result<(), Box<dyn Error>> {
     info!("Starting additional cleanup of previous version");
     let base_dir = BaseDirs::new();
 
-    if let None = base_dir {
+    if base_dir.is_none() {
         error!("base dir returned None");
         return Err(Box::new(CleanupError {
             message: String::from("base dir returned None"),
