@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Add GTK to the Runner Environment
+      uses: yjpictures/GTK-Windows@v1
     - name: Build
       run: cargo build --verbose
     - name: Run Tests
