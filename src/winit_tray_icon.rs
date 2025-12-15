@@ -11,7 +11,6 @@ use tray_icon::{menu::Menu, Icon};
 use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 use winit::application::ApplicationHandler;
 use winit::event_loop::EventLoop;
-use winit::platform::windows::EventLoopBuilderExtWindows;
 
 pub const IMAGE_BYTES: &[u8] = include_bytes!("../images/rl-hours-tracker-logo.ico");
 
@@ -95,7 +94,10 @@ impl ApplicationHandler<UserEvent> for Application {
         cause: winit::event::StartCause,
     ) {
         if winit::event::StartCause::Init == cause {
-            self.tray_icon = Some(Self::new_tray_icon())
+            #[cfg(not(target_os = "linux"))]
+            {
+                self.tray_icon = Some(Self::new_tray_icon())
+            }
         }
     }
 
@@ -163,34 +165,31 @@ impl ApplicationHandler<UserEvent> for Application {
 }
 
 pub fn initialize_tray_icon(stop_tracker: Arc<Mutex<bool>>, currently_tracking: Arc<Mutex<bool>>) {
-    std::thread::spawn(move || {
-        let event_loop = EventLoop::<UserEvent>::with_user_event()
-            .with_any_thread(true)
-            .build()
-            .unwrap_or_else(|e| {
-                log::error!("error occurred creating event loop: {e}");
-                panic!("could not create event loop for tray icon");
-            });
+    let event_loop = EventLoop::<UserEvent>::with_user_event()
+        .build()
+        .unwrap_or_else(|e| {
+            log::error!("error occurred creating event loop: {e}");
+            panic!("could not create event loop for tray icon");
+        });
 
-        let proxy = event_loop.create_proxy();
-        TrayIconEvent::set_event_handler(Some(move |event| {
-            let _ = proxy.send_event(UserEvent::TrayIconEvent(event));
-        }));
+    let proxy = event_loop.create_proxy();
+    TrayIconEvent::set_event_handler(Some(move |event| {
+        let _ = proxy.send_event(UserEvent::TrayIconEvent(event));
+    }));
 
-        let proxy = event_loop.create_proxy();
-        MenuEvent::set_event_handler(Some(move |event| {
-            let _ = proxy.send_event(UserEvent::MenuEvent(event));
-        }));
+    let proxy = event_loop.create_proxy();
+    MenuEvent::set_event_handler(Some(move |event| {
+        let _ = proxy.send_event(UserEvent::MenuEvent(event));
+    }));
 
-        let mut app = Application::new();
-        app.set_stop_tracker(&stop_tracker);
-        app.set_currently_tracking(&currently_tracking);
+    let mut app = Application::new();
+    app.set_stop_tracker(&stop_tracker);
+    app.set_currently_tracking(&currently_tracking);
 
-        if let Err(e) = event_loop.run_app(&mut app) {
-            log::error!("Error: {e:?}");
-            colour::e_red_ln!("Error: {e:?}");
-        }
-    });
+    if let Err(e) = event_loop.run_app(&mut app) {
+        log::error!("Error: {e:?}");
+        colour::e_red_ln!("Error: {e:?}");
+    }
 }
 
 pub fn load_image(image_bytes: &[u8]) -> Result<Icon, Box<dyn Error>> {
