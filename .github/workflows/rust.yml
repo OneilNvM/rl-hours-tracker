@@ -17,15 +17,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       name: Checkout code
-    - name: Add GTK to the Runner Environment
-      uses: yjpictures/GTK-Windows@v1
-    - name: Install Meson and Ninja
-      run: choco install -y meson ninja --limit-exit-code 0
-    - name: Configure and build
-      shell: bash
-      run: |
-        meson setup build
-        meson compile -C build
     - name: Build
       run: cargo build --verbose
     - name: Run Tests

@@ -12,7 +12,6 @@ use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 use winit::application::ApplicationHandler;
 use winit::event_loop::EventLoop;
 
-
 pub const IMAGE_BYTES: &[u8] = include_bytes!("../images/rl-hours-tracker-logo.ico");
 
 #[derive(Debug)]
@@ -186,15 +185,6 @@ pub fn initialize_tray_icon(stop_tracker: Arc<Mutex<bool>>, currently_tracking: 
     let mut app = Application::new();
     app.set_stop_tracker(&stop_tracker);
     app.set_currently_tracking(&currently_tracking);
-
-    #[cfg(target_os = "linux")]
-    std::thread::spawn(|| {
-        gtk::init().unwrap();
-
-        let _tray_icon = Application::new_tray_icon();
-
-        gtk::main();
-    });
 
     if let Err(e) = event_loop.run_app(&mut app) {
         log::error!("Error: {e:?}");
