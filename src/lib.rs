@@ -258,7 +258,7 @@ pub fn create_directory() -> Vec<IoResult<()>> {
 /// This function runs the main loop of the program. This checks if the `RocketLeague.exe` process is running and
 /// runs the [`record_hours`] function if it is running, otherwise it will continue to wait for the process to start.
 fn run_main_loop(program: &mut ProgramRunVars) {
-    'main_loop: loop {
+    loop {
         // Check if the process is running
         if check_for_process(&program.process_name) {
             record_hours(
@@ -286,13 +286,18 @@ fn run_main_loop(program: &mut ProgramRunVars) {
                 .unwrap_or_default();
 
             if program.option.trim() == "y" || program.option.trim() == "Y" {
-                break 'main_loop;
+                print!("{}[2K\r", 27 as char);
+                std::io::stdout()
+                    .flush()
+                    .expect("could not flush the output stream");
+                yellow_ln_bold!("Goodbye!");
+                process::exit(0);
             } else if program.option.trim() == "n" || program.option.trim() == "N" {
                 program.option = String::with_capacity(3);
                 continue;
             } else {
                 error!("Unexpected input! Ending program.");
-                break 'main_loop;
+                process::exit(0)
             }
         } else {
             // Print 'Waiting for Rocket League to start...' only once by changing the value of is_waiting to true
