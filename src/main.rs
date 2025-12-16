@@ -104,5 +104,5 @@ fn main() {
     });
 
     // Initialize the tray icon
-    initialize_tray_icon(main_ct, main_st);
+    initialize_tray_icon(main_st, main_ct);
 }
