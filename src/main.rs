@@ -1,4 +1,5 @@
 use std::io::{ErrorKind, Write};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{env, process, thread};
@@ -13,8 +14,8 @@ use rl_hours_tracker::{
 
 fn main() {
     // Create booleans for sharing between multiple threads
-    let currently_tracking = Arc::new(Mutex::new(false));
-    let stop_tracker: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+    let currently_tracking = Arc::new(Mutex::new(AtomicBool::new(false)));
+    let stop_tracker = Arc::new(Mutex::new(AtomicBool::new(false)));
 
     let main_ct = currently_tracking.clone();
     let main_st = stop_tracker.clone();
