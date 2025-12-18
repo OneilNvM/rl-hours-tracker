@@ -207,7 +207,9 @@ pub fn initialize_tray_icon(
         yellow_ln_bold!("Goodbye!");
         let _ = proxy.send_event(UserEvent::QuitApp(AtomicBool::new(true)));
     })
-    .unwrap();
+    .unwrap_or_else(|e| {
+        error!("could not create handler for ctrlc: {e}");
+    });
 
     let mut app = Application::new();
     app.set_stop_tracker(&stop_tracker);
