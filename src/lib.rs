@@ -93,7 +93,10 @@ use std::{
     fs::{self, File},
     io::{self, Read, Write},
     process,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     thread,
     time::{Duration, SystemTime},
 };
@@ -118,12 +121,15 @@ struct ProgramRunVars {
     process_name: String,
     is_waiting: bool,
     option: String,
-    currently_tracking: Arc<Mutex<bool>>,
-    stop_tracker: Arc<Mutex<bool>>,
+    currently_tracking: Arc<Mutex<AtomicBool>>,
+    stop_tracker: Arc<Mutex<AtomicBool>>,
 }
 
 impl ProgramRunVars {
-    fn new(stop_tracker: Arc<Mutex<bool>>, currently_tracking: Arc<Mutex<bool>>) -> Self {
+    fn new(
+        stop_tracker: Arc<Mutex<AtomicBool>>,
+        currently_tracking: Arc<Mutex<AtomicBool>>,
+    ) -> Self {
         Self {
             process_name: String::from("RocketLeague.exe"),
             is_waiting: false,
@@ -157,7 +163,7 @@ pub fn initialize_logging() -> Result<Handle, Box<dyn Error>> {
     let stdout = ConsoleAppender::builder().build();
     let general_logs = FileAppender::builder()
         .build("C:/RLHoursFolder/logs/general_$TIME{%Y-%m-%d_%H-%M-%S}.log")?;
-    let wti_errors = FileAppender::builder()
+    let wti_logs = FileAppender::builder()
         .build("C:/RLHoursFolder/logs/tray-icon_$TIME{%Y-%m-%d_%H-%M-%S}.log")?;
     let requests = FileAppender::builder()
         .encoder(Box::new(PatternEncoder::new("{d} - {m}{n}")))
@@ -178,8 +184,8 @@ pub fn initialize_logging() -> Result<Handle, Box<dyn Error>> {
         .build("rl_hours_tracker::calculate_past_two", LevelFilter::Info);
     let rl_hours_tracker_wti_logger = Logger::builder()
         .additive(false)
-        .appenders(vec!["general_logs"])
-        .build("rl_hours_tracker::winit_tray_icon", LevelFilter::Error);
+        .appenders(vec!["wti_logs"])
+        .build("rl_hours_tracker::winit_tray_icon", LevelFilter::Info);
 
     // Move loggers and appenders into vectors
     let loggers = vec![
@@ -192,7 +198,7 @@ pub fn initialize_logging() -> Result<Handle, Box<dyn Error>> {
         Appender::builder().build("stdout", Box::new(stdout)),
         Appender::builder().build("general_logs", Box::new(general_logs)),
         Appender::builder().build("requests", Box::new(requests)),
-        Appender::builder().build("wti_errors", Box::new(wti_errors)),
+        Appender::builder().build("wti_logs", Box::new(wti_logs)),
     ];
 
     let config = Config::builder()
@@ -216,7 +222,7 @@ pub fn run_self_update() -> Result<(), Box<dyn Error>> {
 }
 
 /// This function runs the program
-pub fn run(stop_tracker: Arc<Mutex<bool>>, currently_tracking: Arc<Mutex<bool>>) {
+pub fn run(stop_tracker: Arc<Mutex<AtomicBool>>, currently_tracking: Arc<Mutex<AtomicBool>>) {
     let mut program = ProgramRunVars::new(stop_tracker, currently_tracking);
 
     // Run the main loop
@@ -335,8 +341,8 @@ fn run_main_loop(program: &mut ProgramRunVars) {
 /// `hours.txt`
 fn record_hours(
     process_name: &str,
-    stop_tracker: Arc<Mutex<bool>>,
-    currently_tracking: Arc<Mutex<bool>>,
+    stop_tracker: Arc<Mutex<AtomicBool>>,
+    currently_tracking: Arc<Mutex<AtomicBool>>,
 ) {
     let mut sw = Stopwatch::start_new();
 
@@ -345,7 +351,7 @@ fn record_hours(
     *currently_tracking.try_lock().unwrap_or_else(|e| {
         error!("error when attempting to access lock for currently_tracking: {e}");
         panic!("could not access lock for currently_tracking");
-    }) = true;
+    }) = true.into();
 
     // Start live stopwatch
     live_stopwatch(process_name, stop_tracker.clone());
@@ -353,12 +359,12 @@ fn record_hours(
     *currently_tracking.try_lock().unwrap_or_else(|e| {
         error!("error when attempting to access lock for currently_tracking: {e}");
         panic!("could not access lock for currently_tracking");
-    }) = false;
+    }) = false.into();
 
     *stop_tracker.try_lock().unwrap_or_else(|e| {
         error!("error when attempting to access lock for stop_tracking: {e}");
         panic!("could not access lock for stop_tracking");
-    }) = false;
+    }) = false.into();
 
     // Stop the stopwatch
     sw.stop();
@@ -396,7 +402,7 @@ fn record_hours(
     }
 }
 
-fn live_stopwatch(process_name: &str, stop_tracker: Arc<Mutex<bool>>) {
+fn live_stopwatch(process_name: &str, stop_tracker: Arc<Mutex<AtomicBool>>) {
     let mut timer_early = SystemTime::now();
 
     let mut seconds: u8 = 0;
@@ -404,10 +410,13 @@ fn live_stopwatch(process_name: &str, stop_tracker: Arc<Mutex<bool>>) {
     let mut hours: u16 = 0;
 
     while check_for_process(process_name)
-        && !*stop_tracker.try_lock().unwrap_or_else(|e| {
-            error!("error when attempting to access lock for stop_tracking: {e}");
-            panic!("could not access lock for stop_tracking");
-        })
+        && stop_tracker
+            .try_lock()
+            .unwrap_or_else(|e| {
+                error!("error when attempting to access lock for stop_tracking: {e}");
+                panic!("could not access lock for stop_tracking");
+            })
+            .fetch_not(Ordering::SeqCst)
     {
         let timer_now = timer_early
             .checked_add(Duration::from_millis(999))
