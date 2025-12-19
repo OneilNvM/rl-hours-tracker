@@ -42,6 +42,8 @@ otherwise it could lead to unwanted behaviour by the program
 - You may get a **Windows SmartScreen** warning after opening the installer, but you can press **'more info'** and select **'Run anyway'** in order to run the installer.
 - After the program is installed, you should be able to run the program via the desktop shortcut.
 
+---
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE)
