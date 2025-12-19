@@ -11,15 +11,26 @@ env:
 
 jobs:
   build:
-
-    runs-on: windows-latest
-
+    name: Run Cargo Build
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       name: Checkout code
-    - name: Build
+    - name: Run Build
       run: cargo build --verbose
-    - name: Run Tests
-      run: cargo test t_ --verbose
+  clippy:
+    name: Check Cargo Clippy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      name: Checkout code
     - name: Run Clippy
       run: cargo clippy --verbose -- -D warnings
+  test:
+    name: Run Cargo Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      name: Checkout code
+    - name: Run Tests
+      run: cargo test t_ --verbose
