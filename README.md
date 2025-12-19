@@ -1,11 +1,11 @@
-<h1 style="text-align:center;">Rocket League Hours Tracker</h1>
+<h1 align="center">Rocket League Hours Tracker</h1>
 
-<p style="text-align:center">
+<p align="center">
     <img alt="Static Badge" src="https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge">
     <img alt="Static Badge" src="https://img.shields.io/badge/coverage-90%25-orange?style=for-the-badge">
 </p>
 
-<p style="text-align:center;">
+<p align="center">
     <a href="https://crates.io/crates/rl-hours-tracker/0.4.2" target="_blank">
         <img alt="Static Badge" src="https://img.shields.io/badge/crates.io-v0.4.2-blue?logo=rust">
     </a>
@@ -14,7 +14,7 @@
     </a>
 </p>
 
-<p style="text-align:center;">A tracker made with Rust to record your hours and mimic Steam's <span style="font-weight:700;">'hours in the past two weeks'</span> metric.</p>
+<p align="center">A tracker made with Rust to record your hours and mimic Steam's <strong>'hours in the past two weeks'</strong> metric.</p>
 
 ---
 
