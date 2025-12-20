@@ -213,7 +213,7 @@ pub fn initialize_tray_icon(
 
     #[cfg(target_os = "linux")]
     std::thread::spawn(|| {
-        gtk::init();
+        let _ = gtk::init();
 
         let _tray_icon = Application::new_tray_icon();
 
