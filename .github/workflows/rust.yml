@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         name: Checkout code
+      - name: Install gtk and pkgconfig
+        run: sudo apt-get update && sudo apt-get install -y libgtk2.0-dev pkg-config
       - name: Run Build
         run: cargo build --verbose
   build-windows:
@@ -32,6 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         name: Checkout code
+      - name: Install gtk and pkgconfig
+        run: sudo apt-get update && sudo apt-get install -y libgtk2.0-dev pkg-config
       - name: Run Clippy
         run: cargo clippy --verbose -- -D warnings
 
@@ -50,6 +54,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         name: Checkout code
+      - name: Install gtk and pkgconfig
+        run: sudo apt-get update && sudo apt-get install -y libgtk2.0-dev pkg-config
       - name: Run Tests
         run: cargo test t_ --verbose
   test-windows:
