@@ -27,3 +27,6 @@ tray-icon = "0.21.2"
 webbrowser = "1.0.3"
 winit = "0.30.12"
 zip = "2.2.2"
+
+[target."cfg(target_os = \"linux\")".dependencies]
+gtk = "0.18"

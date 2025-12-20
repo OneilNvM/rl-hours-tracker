@@ -211,6 +211,15 @@ pub fn initialize_tray_icon(
         error!("could not create handler for ctrlc: {e}");
     });
 
+    #[cfg(target_os = "linux")]
+    std::thread::spawn(|| {
+        let _ = gtk::init();
+
+        let _tray_icon = Application::new_tray_icon();
+
+        gtk::main();
+    });
+
     let mut app = Application::new();
     app.set_stop_tracker(&stop_tracker);
     app.set_currently_tracking(&currently_tracking);
