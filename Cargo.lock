@@ -3215,6 +3215,7 @@ dependencies = [
  "colour",
  "ctrlc",
  "directories",
+ "gtk",
  "image",
  "log",
  "log4rs",
