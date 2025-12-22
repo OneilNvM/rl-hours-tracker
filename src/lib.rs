@@ -80,7 +80,7 @@
 //! ```
 use chrono::Local;
 use colour::{black_bold, blue_ln_bold, cyan, green, green_ln_bold, red, white, yellow_ln_bold};
-use log::{error, info, warn, LevelFilter};
+use log::{error, info, trace, warn, LevelFilter};
 use log4rs::{
     append::{console::ConsoleAppender, file::FileAppender},
     config::{Appender, Logger, Root},
@@ -103,8 +103,9 @@ use std::{
 use stopwatch::Stopwatch;
 use sysinfo::System;
 use tokio::runtime::Runtime;
+use winit::event_loop::EventLoopProxy;
 
-use crate::calculate_past_two::calculate_past_two;
+use crate::{calculate_past_two::calculate_past_two, winit_tray_icon::UserEvent};
 
 pub mod calculate_past_two;
 #[cfg(test)]
@@ -118,6 +119,7 @@ pub type IoResult<T> = Result<T, io::Error>;
 
 /// Contains the relevant data for running the program
 struct ProgramRunVars {
+    proxy: EventLoopProxy<UserEvent>,
     process_name: String,
     is_waiting: bool,
     option: String,
@@ -127,13 +129,15 @@ struct ProgramRunVars {
 
 impl ProgramRunVars {
     fn new(
+        proxy: EventLoopProxy<UserEvent>,
         stop_tracker: Arc<Mutex<AtomicBool>>,
         currently_tracking: Arc<Mutex<AtomicBool>>,
     ) -> Self {
         Self {
             process_name: String::from("RocketLeague.exe"),
             is_waiting: false,
-            option: String::with_capacity(3),
+            option: String::with_capacity(1),
+            proxy,
             stop_tracker,
             currently_tracking,
         }
@@ -173,7 +177,7 @@ pub fn initialize_logging() -> Result<Handle, Box<dyn Error>> {
     let rl_hours_tracker_logger = Logger::builder()
         .additive(false)
         .appenders(vec!["general_logs"])
-        .build("rl_hours_tracker", LevelFilter::Info);
+        .build("rl_hours_tracker", LevelFilter::Trace);
     let rl_hours_tracker_update_logger = Logger::builder()
         .additive(false)
         .appenders(vec!["requests", "general_logs"])
@@ -222,8 +226,12 @@ pub fn run_self_update() -> Result<(), Box<dyn Error>> {
 }
 
 /// This function runs the program
-pub fn run(stop_tracker: Arc<Mutex<AtomicBool>>, currently_tracking: Arc<Mutex<AtomicBool>>) {
-    let mut program = ProgramRunVars::new(stop_tracker, currently_tracking);
+pub fn run(
+    proxy: EventLoopProxy<UserEvent>,
+    stop_tracker: Arc<Mutex<AtomicBool>>,
+    currently_tracking: Arc<Mutex<AtomicBool>>,
+) {
+    let mut program = ProgramRunVars::new(proxy, stop_tracker, currently_tracking);
 
     // Run the main loop
     run_main_loop(&mut program);
@@ -297,13 +305,21 @@ fn run_main_loop(program: &mut ProgramRunVars) {
                     .flush()
                     .expect("could not flush the output stream");
                 yellow_ln_bold!("Goodbye!");
-                process::exit(0);
+                program
+                    .proxy
+                    .send_event(UserEvent::QuitApp(AtomicBool::new(true)))
+                    .unwrap_or_else(|_| error!("event loop already closed"));
+                break;
             } else if program.option.trim() == "n" || program.option.trim() == "N" {
-                program.option = String::with_capacity(3);
+                program.option = String::with_capacity(1);
                 continue;
             } else {
                 error!("Unexpected input! Ending program.");
-                process::exit(0)
+                program
+                    .proxy
+                    .send_event(UserEvent::QuitApp(AtomicBool::new(true)))
+                    .unwrap_or_else(|_| error!("event loop already closed"));
+                break;
             }
         } else {
             // Print 'Waiting for Rocket League to start...' only once by changing the value of is_waiting to true
@@ -348,23 +364,57 @@ fn record_hours(
 
     blue_ln_bold!("\nRocket League is running\n");
 
-    *currently_tracking.try_lock().unwrap_or_else(|e| {
-        error!("error when attempting to access lock for currently_tracking: {e}");
-        panic!("could not access lock for currently_tracking");
-    }) = true.into();
+    currently_tracking
+        .try_lock()
+        .unwrap_or_else(|e| {
+            error!("error when attempting to access lock for currently_tracking: {e}");
+            panic!("could not access lock for currently_tracking");
+        })
+        .store(true, Ordering::SeqCst);
+
+    trace!(
+        "<< fn record_hours >> currently_tracking set to {} before live_stopwatch",
+        currently_tracking
+            .try_lock()
+            .unwrap()
+            .load(Ordering::Relaxed)
+    );
+    trace!(
+        "<< fn record_hours >> stop_tracker set to {} before live_stopwatch",
+        stop_tracker.try_lock().unwrap().load(Ordering::Relaxed)
+    );
 
     // Start live stopwatch
     live_stopwatch(process_name, stop_tracker.clone());
 
-    *currently_tracking.try_lock().unwrap_or_else(|e| {
-        error!("error when attempting to access lock for currently_tracking: {e}");
-        panic!("could not access lock for currently_tracking");
-    }) = false.into();
+    trace!(
+        "<< fn record_hours >> stop_tracker set to {} after live_stopwatch",
+        stop_tracker.try_lock().unwrap().load(Ordering::Relaxed)
+    );
 
-    *stop_tracker.try_lock().unwrap_or_else(|e| {
-        error!("error when attempting to access lock for stop_tracking: {e}");
-        panic!("could not access lock for stop_tracking");
-    }) = false.into();
+    currently_tracking
+        .try_lock()
+        .unwrap_or_else(|e| {
+            error!("error when attempting to access lock for currently_tracking: {e}");
+            panic!("could not access lock for currently_tracking");
+        })
+        .store(false, Ordering::SeqCst);
+
+    trace!(
+        "<< fn record_hours >> currently_tracking set to {} after live_stopwatch",
+        currently_tracking
+            .try_lock()
+            .unwrap()
+            .load(Ordering::Relaxed)
+    );
+
+    stop_tracker
+        .try_lock()
+        .unwrap_or_else(|e| {
+            error!("error when attempting to access lock for stop_tracking: {e}");
+            panic!("could not access lock for stop_tracking");
+        })
+        .store(false, Ordering::SeqCst);
 
     // Stop the stopwatch
     sw.stop();
@@ -373,6 +423,8 @@ fn record_hours(
 
     let seconds: u64 = sw.elapsed_ms() as u64 / 1000;
     let hours: f32 = (sw.elapsed_ms() as f32 / 1000_f32) / 3600_f32;
+
+    trace!("<< fn record_hours >> seconds: {seconds}, hours: {hours:.1}");
 
     let hours_result = File::open("C:\\RLHoursFolder\\hours.txt");
     let date_result = File::open("C:\\RLHoursFolder\\date.txt");
@@ -388,6 +440,8 @@ fn record_hours(
         warn!("failed to calculate past two: {e}");
         0
     });
+
+    trace!("<< fn record_hours >> hours_buffer is set to {hours_buffer}");
 
     if hours_buffer != 0 {
         let hours_past_two = hours_buffer as f32 / 3600_f32;
@@ -410,13 +464,13 @@ fn live_stopwatch(process_name: &str, stop_tracker: Arc<Mutex<AtomicBool>>) {
     let mut hours: u16 = 0;
 
     while check_for_process(process_name)
-        && stop_tracker
+        && !stop_tracker
             .try_lock()
             .unwrap_or_else(|e| {
                 error!("error when attempting to access lock for stop_tracking: {e}");
                 panic!("could not access lock for stop_tracking");
             })
-            .fetch_not(Ordering::SeqCst)
+            .load(Ordering::SeqCst)
     {
         let timer_now = timer_early
             .checked_add(Duration::from_millis(999))
@@ -478,6 +532,8 @@ fn live_stopwatch(process_name: &str, stop_tracker: Arc<Mutex<AtomicBool>>) {
 
         timer_early += Duration::from_millis(999)
     }
+
+    trace!("<< fn live_stopwatch >> hours: {hours}, minutes: {minutes}, seconds: {seconds}");
 }
 
 /// This function takes the `contents: &str` parameter which contains the contents from the `hours.txt` file
@@ -504,6 +560,8 @@ fn retrieve_time(contents: &str) -> Result<(u64, f32), Box<dyn Error>> {
         }
     }
 
+    trace!("<< fn retrieve_time >> seconds vector: {sec_vec:?}");
+
     // Loop through the Chars iterator to push numeric characters (plus the period character for decimals) to the hours Vector
     for num in split_char_hrs {
         if num.is_numeric() || num == '.' {
@@ -511,11 +569,15 @@ fn retrieve_time(contents: &str) -> Result<(u64, f32), Box<dyn Error>> {
         }
     }
 
+    trace!("<< fn retrieve_time >> hours vector: {hrs_vec:?}");
+
     let seconds_str: String = sec_vec.iter().collect();
     let hours_str: String = hrs_vec.iter().collect();
 
     let old_seconds: u64 = seconds_str.parse()?;
     let old_hours: f32 = hours_str.parse()?;
+
+    trace!("<< fn retrieve_time >> old seconds: {old_seconds}, old_hours: {old_hours:.1}");
 
     // Return a tuple of the old seconds and old hours
     Ok((old_seconds, old_hours))
@@ -535,6 +597,8 @@ fn return_new_hours(
 
     let added_seconds = old_seconds + *seconds;
     let added_hours = old_hours + *hours;
+
+    trace!("<< fn return_new_hours >> added_seconds: {added_seconds}, added_hours: {added_hours:.1}");
 
     Ok(format!(
         "Rocket League Hours\nTotal Seconds: {}s\nTotal Hours: {:.1}hrs\nHours Past Two Weeks: {:.1}hrs\n",
