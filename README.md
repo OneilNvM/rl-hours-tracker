@@ -6,11 +6,11 @@
 </p>
 
 <p align="center">
-    <a href="https://crates.io/crates/rl-hours-tracker/0.4.3" target="_blank">
-        <img alt="Static Badge" src="https://img.shields.io/badge/crates.io-v0.4.3-blue?logo=rust">
+    <a href="https://crates.io/crates/rl-hours-tracker/0.4.4" target="_blank">
+        <img alt="Static Badge" src="https://img.shields.io/badge/crates.io-v0.4.4-blue?logo=rust">
     </a>
-    <a href="https://github.com/OneilNvM/rl-hours-tracker/releases/tag/v0.4.3" target="_blank">
-        <img alt="Static Badge" src="https://img.shields.io/badge/Release-v0.4.3-purple?logo=github">
+    <a href="https://github.com/OneilNvM/rl-hours-tracker/releases/tag/v0.4.4" target="_blank">
+        <img alt="Static Badge" src="https://img.shields.io/badge/Release-v0.4.4-purple?logo=github">
     </a>
 </p>
 

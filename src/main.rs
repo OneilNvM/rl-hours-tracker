@@ -7,12 +7,22 @@ use std::{env, process, thread};
 use colour::{blue, blue_ln, cyan, e_red_ln, green_ln, green_ln_bold};
 use log::{error, warn};
 use rl_hours_tracker::initialize_logging;
-use rl_hours_tracker::winit_tray_icon::initialize_tray_icon;
+use rl_hours_tracker::winit_tray_icon::{UserEvent, initialize_tray_icon};
 use rl_hours_tracker::{
     calculate_past_two::update_past_two, create_directory, run, run_self_update,
 };
+use winit::event_loop::EventLoop;
 
 fn main() {
+    let event_loop = EventLoop::<UserEvent>::with_user_event()
+        .build()
+        .unwrap_or_else(|e| {
+            error!("error occurred creating event loop: {e}");
+            panic!("could not create event loop for tray icon");
+        });
+
+    let proxy = event_loop.create_proxy();
+    
     // Create booleans for sharing between multiple threads
     let currently_tracking = Arc::new(Mutex::new(AtomicBool::new(false)));
     let stop_tracker = Arc::new(Mutex::new(AtomicBool::new(false)));
@@ -101,9 +111,9 @@ fn main() {
             green_ln_bold!("Past Two Updated!\n");
         }
 
-        run(stop_tracker, currently_tracking);
+        run(proxy, stop_tracker, currently_tracking);
     });
 
     // Initialize the tray icon
-    initialize_tray_icon(main_st, main_ct);
+    initialize_tray_icon(event_loop, main_st, main_ct);
 }

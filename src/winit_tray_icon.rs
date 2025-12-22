@@ -3,6 +3,7 @@
 use colour::yellow_ln_bold;
 use image::{ImageFormat, ImageReader};
 use log::{error, info};
+use winit::event_loop::EventLoop;
 use std::error::Error;
 use std::io::{Cursor, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,12 +12,11 @@ use tray_icon::menu::{IsMenuItem, MenuEvent, MenuItem};
 use tray_icon::{menu::Menu, Icon};
 use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 use winit::application::ApplicationHandler;
-use winit::event_loop::EventLoop;
 
 pub const IMAGE_BYTES: &[u8] = include_bytes!("../images/rl-hours-tracker-logo.ico");
 
 #[derive(Debug)]
-enum UserEvent {
+pub enum UserEvent {
     TrayIconEvent(TrayIconEvent),
     MenuEvent(MenuEvent),
     QuitApp(AtomicBool),
@@ -38,6 +38,7 @@ impl Application {
     }
 
     pub fn new_tray_icon() -> TrayIcon {
+        info!("Creating system tray icon");
         let image = load_image(IMAGE_BYTES).unwrap_or_else(|e| {
             error!("error occurred when loading image: {e}");
             panic!("could not load image for tray icon");
@@ -54,6 +55,7 @@ impl Application {
     }
 
     fn new_tray_menu() -> Menu {
+        info!("Creating system tray icon menu");
         let tray_menu = Menu::new();
         let menu_item1 = MenuItem::new("Exit", true, None);
         let menu_item2 = MenuItem::new("Stop Tracker", true, None);
@@ -67,12 +69,14 @@ impl Application {
     }
 
     fn set_currently_tracking(&mut self, currently_tracking: &Arc<Mutex<AtomicBool>>) -> &mut Self {
+        info!("Setting currently_tracking in winit Application");
         self.currently_tracking = Some(currently_tracking.clone());
 
         self
     }
 
     fn set_stop_tracker(&mut self, stop_tracker: &Arc<Mutex<AtomicBool>>) -> &mut Self {
+        info!("Setting stop_tracking in winit Application");
         self.stop_tracker = Some(stop_tracker.clone());
 
         self
@@ -112,6 +116,7 @@ impl ApplicationHandler<UserEvent> for Application {
         match event {
             UserEvent::MenuEvent(menu) => {
                 if menu.id == "1001" {
+                    info!("Exit menu item clicked");
                     _event_loop.exit();
                     print!("{}[2K\r", 27 as char);
                     std::io::stdout()
@@ -133,9 +138,10 @@ impl ApplicationHandler<UserEvent> for Application {
                             );
                             panic!("error when attempting to access lock for currently_tracking");
                         })
-                        .fetch_and(true, Ordering::SeqCst)
+                        .load(Ordering::SeqCst)
                 {
-                    *self
+                    info!("Stop Tracker menu item clicked");
+                    self
                         .stop_tracker
                         .as_mut()
                         .unwrap_or_else(|| {
@@ -148,9 +154,9 @@ impl ApplicationHandler<UserEvent> for Application {
                                 "error when attempting to access lock for currently_tracking: {e}"
                             );
                             panic!("error when attempting to access lock for currently_tracking");
-                        }) = true.into();
+                        }).store(true, Ordering::SeqCst);
 
-                    *self
+                    self
                         .currently_tracking
                         .as_mut()
                         .unwrap_or_else(|| {
@@ -163,11 +169,12 @@ impl ApplicationHandler<UserEvent> for Application {
                                 "error when attempting to access lock for currently_tracking: {e}"
                             );
                             panic!("error when attempting to access lock for currently_tracking");
-                        }) = false.into();
+                        }).store(false, Ordering::SeqCst);
                 }
             }
             UserEvent::QuitApp(quit) => {
                 if quit.fetch_and(true, Ordering::SeqCst) {
+                    info!("Quiting the application");
                     _event_loop.exit();
                 }
             }
@@ -177,16 +184,10 @@ impl ApplicationHandler<UserEvent> for Application {
 }
 
 pub fn initialize_tray_icon(
+    event_loop: EventLoop<UserEvent>,
     stop_tracker: Arc<Mutex<AtomicBool>>,
     currently_tracking: Arc<Mutex<AtomicBool>>,
 ) {
-    let event_loop = EventLoop::<UserEvent>::with_user_event()
-        .build()
-        .unwrap_or_else(|e| {
-            error!("error occurred creating event loop: {e}");
-            panic!("could not create event loop for tray icon");
-        });
-
     let proxy = event_loop.create_proxy();
     TrayIconEvent::set_event_handler(Some(move |event| {
         let _ = proxy.send_event(UserEvent::TrayIconEvent(event));
@@ -217,6 +218,7 @@ pub fn initialize_tray_icon(
 
         let _tray_icon = Application::new_tray_icon();
 
+        info!("Starting main event loop with gtk");
         gtk::main();
     });
 
@@ -231,6 +233,7 @@ pub fn initialize_tray_icon(
 }
 
 pub fn load_image(image_bytes: &[u8]) -> Result<Icon, Box<dyn Error>> {
+    info!("Loading Rocket League Hours Tracker icon");
     let mut image_reader = ImageReader::new(Cursor::new(image_bytes));
     image_reader.set_format(ImageFormat::Ico);
 
